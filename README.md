@@ -1,4 +1,4 @@
-# JDumpSpiderPlus
+# JDumpSpiderPlus v2.1
 
 HeapDump敏感信息提取工具（增强版）
 
@@ -31,15 +31,17 @@ HeapDump敏感信息提取工具（增强版）
 
 ### HaE规则引擎（新增功能）
 
-集成HaE的28条内置规则，支持以下敏感信息匹配：
+集成HaE的28条内置规则 + 8条HeapDump增强规则，支持以下敏感信息匹配：
 
 | 规则组 | 规则名 | 匹配内容 |
 |--------|--------|----------|
 | **Basic Information** | Email | 邮箱地址 |
-| | Chinese IDCard | 身份证号码（15/18位） |
-| | Chinese Mobile Number | 手机号码 |
+| | Chinese IDCard | 身份证号码（18位，严格格式验证） |
+| | Chinese Mobile Number | 手机号码（11位） |
 | | Internal IP Address | 内网IP地址 |
 | | MAC Address | MAC地址 |
+| | Bank Card Number | 银行卡号（16-19位） |
+| | Social Credit Code | 统一社会信用代码 |
 | **Sensitive Information** | Cloud Key | 云服务密钥（阿里云LTAI等） |
 | | Password Field | 密码字段（JSON/JS格式） |
 | | Username Field | 用户名字段 |
@@ -55,6 +57,12 @@ HeapDump敏感信息提取工具（增强版）
 | **Other** | Linkfinder | URL和路径提取 |
 | | All URL | HTTP/HTTPS链接 |
 | | Source Map | Source Map文件 |
+| **HeapDump Enhanced** | RSA Private Key | RSA私钥 |
+| | AWS Access Key | AWS访问密钥 |
+| | GitHub Token | GitHub令牌 |
+| | Slack Token | Slack令牌 |
+| | Connection String | 连接串（mongodb/redis/kafka） |
+| | Internal Domain | 内网域名（.local/.internal等） |
 
 ## 使用方法
 
@@ -77,7 +85,7 @@ java -jar JDumpSpiderPlus.jar heapdump export-strings
 ### 命令行参数
 
 ```
-JDumpSpiderPlus v2.0 - HeapDump Sensitive Information Extractor
+JDumpSpiderPlus v2.1 - HeapDump Sensitive Information Extractor
 Usage: java -jar JDumpSpiderPlus.jar <heapfile> [options]
 Options:
   --rules <path>    Load custom HaE rules YAML file
