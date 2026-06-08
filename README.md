@@ -1,4 +1,4 @@
-# JDumpSpiderPlus v2.1
+# JDumpSpiderPlus v2.3
 
 HeapDump敏感信息提取工具（增强版）
 
@@ -17,6 +17,12 @@ HeapDump敏感信息提取工具（增强版）
 | 数据源 | HikariDataSource | HikariCP数据源 |
 | Redis | RedisStandaloneConfiguration | Redis单机配置 |
 | Redis | JedisClient | Jedis客户端配置 |
+| Redis | RedisCluster/Sentinel | Redis集群/哨兵配置 |
+| MongoDB | MongoDBProperties | MongoDB配置（增强版） |
+| Kafka | KafkaProperties | Kafka配置（SASL/SSL） |
+| RabbitMQ | RabbitProperties | RabbitMQ配置 |
+| Elasticsearch | ElasticsearchProperties | Elasticsearch配置 |
+| Nacos | NacosProperties | Nacos配置中心/服务发现 |
 | ShiroKey | CookieRememberMeManager | Shiro RememberMe密钥 |
 | 配置文件 | OriginTrackedMapPropertySource | Spring Boot配置 |
 | 配置文件 | MutablePropertySources | Spring环境属性 |
@@ -31,7 +37,7 @@ HeapDump敏感信息提取工具（增强版）
 
 ### HaE规则引擎（新增功能）
 
-集成HaE的28条内置规则 + 8条HeapDump增强规则，支持以下敏感信息匹配：
+集成HaE的28条内置规则 + 20+条HeapDump增强规则，支持以下敏感信息匹配：
 
 | 规则组 | 规则名 | 匹配内容 |
 |--------|--------|----------|
@@ -40,14 +46,27 @@ HeapDump敏感信息提取工具（增强版）
 | | Chinese Mobile Number | 手机号码（11位） |
 | | Internal IP Address | 内网IP地址 |
 | | MAC Address | MAC地址 |
-| | Bank Card Number | 银行卡号（16-19位） |
-| | Social Credit Code | 统一社会信用代码 |
 | **Sensitive Information** | Cloud Key | 云服务密钥（阿里云LTAI等） |
 | | Password Field | 密码字段（JSON/JS格式） |
 | | Username Field | 用户名字段 |
 | | JDBC Connection | JDBC连接串 |
 | | Authorization Header | Basic/Bearer认证头 |
 | | Sensitive Field | 敏感字段（key/secret/token等） |
+| | Name Field | 姓名字段 |
+| | Phone Field | 手机号字段 |
+| | Email Field | 邮箱字段 |
+| | Address Field | 地址字段 |
+| | ID Card Field | 身份证字段 |
+| **Cloud Service Credentials** | Alibaba Cloud AccessKey | 阿里云AccessKey |
+| | Alibaba Cloud SecretKey | 阿里云SecretKey |
+| | Tencent Cloud SecretId | 腾讯云SecretId |
+| | Tencent Cloud SecretKey | 腾讯云SecretKey |
+| | Huawei Cloud AK | 华为云AK |
+| | Huawei Cloud SK | 华为云SK |
+| | AWS Access Key | AWS访问密钥 |
+| | Azure Storage Key | Azure存储密钥 |
+| | GCP Service Account | GCP服务账号 |
+| | Cloud Storage Bucket | 云存储桶 |
 | | Mobile Number Field | 手机号字段 |
 | | Userinfo In Link | URL中的用户凭证 |
 | **Fingerprint** | Shiro | Apache Shiro特征 |

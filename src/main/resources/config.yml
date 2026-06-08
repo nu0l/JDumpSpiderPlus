@@ -1,0 +1,102 @@
+# JDumpSpiderPlus 配置文件
+
+# 扫描设置
+scan:
+  # 最大字符串数量
+  max-strings: 2000000
+  # 每个规则最大匹配数
+  max-match-per-rule: 5000
+  # 并行线程数 (0表示使用CPU核心数)
+  threads: 0
+  # 超时时间（秒）
+  timeout: 300
+
+# 输出设置
+output:
+  # 输出格式: text, json
+  format: text
+  # 是否保存到文件
+  save-to-file: true
+  # 输出目录
+  output-dir: results
+
+# 规则设置
+rules:
+  # 是否使用内置规则
+  use-builtin: true
+  # 自定义规则文件路径
+  custom-rules: null
+  # 是否启用HaE规则
+  hae-rules: true
+
+# 提取器设置
+extractors:
+  # 数据源
+  datasource:
+    enabled: true
+  # Redis
+  redis:
+    enabled: true
+  # MongoDB
+  mongodb:
+    enabled: true
+  # Kafka
+  kafka:
+    enabled: true
+  # RabbitMQ
+  rabbitmq:
+    enabled: true
+  # Elasticsearch
+  elasticsearch:
+    enabled: true
+  # Nacos
+  nacos:
+    enabled: true
+  # Shiro
+  shiro:
+    enabled: true
+  # 配置文件
+  property-source:
+    enabled: true
+  # 环境变量
+  env-property:
+    enabled: true
+  # OSS
+  oss:
+    enabled: true
+  # 用户信息
+  user-pass:
+    enabled: true
+  # Cookie
+  cookie:
+    enabled: true
+  # 认证信息
+  auth:
+    enabled: true
+
+# 代理设置
+proxy:
+  # 代理地址 (http://host:port)
+  url: null
+  # 代理用户名
+  username: null
+  # 代理密码
+  password: null
+
+# HTTP设置
+http:
+  # 连接超时（毫秒）
+  connect-timeout: 30000
+  # 读取超时（毫秒）
+  read-timeout: 60000
+  # User-Agent
+  user-agent: JDumpSpiderPlus/2.2
+
+# 日志设置
+logging:
+  # 日志级别: debug, info, warn, error
+  level: info
+  # 是否显示进度
+  show-progress: true
+  # 是否使用彩色输出
+  color-output: true

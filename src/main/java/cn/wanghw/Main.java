@@ -1,6 +1,7 @@
 package cn.wanghw;
 
 import cn.wanghw.spider.*;
+import cn.wanghw.utils.ConfigLoader;
 import cn.wanghw.utils.HttpDownloader;
 import cn.wanghw.utils.JsonOutputFormatter;
 import org.graalvm.visualvm.lib.jfluid.heap.GraalvmHeapHolder;
@@ -12,13 +13,14 @@ import java.util.*;
 
 public class Main {
 
-    public static final String VERSION = "2.2";
+    public static final String VERSION = "2.3";
     private File heapfile;
     private final List<String> flag = new LinkedList<String>();
     static PrintStream out = null;
     private static String rulesPath = null;
     private static String heapFilePath = null;
     private static String outputFormat = "text"; // text or json
+    private static ConfigLoader config = null;
 
     public static String getRulesPath() {
         return rulesPath;
@@ -28,11 +30,20 @@ public class Main {
         return heapFilePath;
     }
 
+    public static ConfigLoader getConfig() {
+        return config;
+    }
+
     public static String run(String[] args) throws Exception {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         if (out == null) {
             out = new PrintStream(bout);
         }
+
+        // 加载配置文件
+        config = new ConfigLoader();
+        config.load();
+
         if (args.length < 1) {
             printUsage();
             return "";
@@ -181,6 +192,12 @@ public class Main {
             new DataSource05(),
             new Redis01(),
             new Redis02(),
+            new Redis03(),
+            new MongoDB01(),
+            new Kafka01(),
+            new RabbitMQ01(),
+            new Elasticsearch01(),
+            new Nacos01(),
             new ShiroKey01(),
             new PropertySource01(),
             new PropertySource02(),
@@ -192,7 +209,7 @@ public class Main {
             new UserPassSearcher01(),
             new CookieThief(),
             new AuthThief(),
-            new HeapdumpRegexSpider()
+            new HeapdumpRegexSpiderParallel()
     };
 
     public int call(PrintStream out) throws Exception {
@@ -239,7 +256,7 @@ public class Main {
 
         // Run built-in spiders (except regex spider)
         for (ISpider spider : allSpiders) {
-            if (spider instanceof HeapdumpRegexSpider) {
+            if (spider instanceof HeapdumpRegexSpiderParallel) {
                 continue; // Handle separately
             }
             String result = spider.sniff(heapHolder);
@@ -273,7 +290,7 @@ public class Main {
 
         // Run regex spider (results saved separately by the spider itself)
         for (ISpider spider : allSpiders) {
-            if (spider instanceof HeapdumpRegexSpider) {
+            if (spider instanceof HeapdumpRegexSpiderParallel) {
                 String result = spider.sniff(heapHolder);
                 if (result != null && !result.isEmpty()) {
                     allResults.put("HaE Rules Scan", Arrays.asList(result.split("\n")));

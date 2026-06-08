@@ -514,3 +514,95 @@ rules:
         scope: response body
         engine: nfa
         sensitive: false
+  - group: Cloud Service Credentials
+    rule:
+      - name: Alibaba Cloud AccessKey
+        loaded: true
+        f_regex: ((LTAI[A-Za-z0-9]{12,20})|(acs:ram::[0-9]+:))
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: true
+      - name: Alibaba Cloud SecretKey
+        loaded: true
+        f_regex: ((accessKeyId|accessKeySecret|accesskeyid|accesskeysecret)["\s]*[:=]["\s]*['"]?([A-Za-z0-9]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Tencent Cloud SecretId
+        loaded: true
+        f_regex: ((AKID[A-Za-z0-9]{13,20})|(secretId|secretid)["\s]*[:=]["\s]*['"]?([A-Za-z0-9]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Tencent Cloud SecretKey
+        loaded: true
+        f_regex: ((secretKey|secretkey)["\s]*[:=]["\s]*['"]?([A-Za-z0-9]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Huawei Cloud AK
+        loaded: true
+        f_regex: ((HWAK[A-Za-z0-9]{13,20})|(accessKey|accesskey)["\s]*[:=]["\s]*['"]?([A-Za-z0-9]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Huawei Cloud SK
+        loaded: true
+        f_regex: ((secretKey|secretkey)["\s]*[:=]["\s]*['"]?([A-Za-z0-9]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: AWS Access Key
+        loaded: true
+        f_regex: ((AKIA[A-Z0-9]{16})|(aws_access_key_id|aws_secret_access_key)["\s]*[:=]["\s]*['"]?([A-Za-z0-9/+=]{20,40})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Azure Storage Key
+        loaded: true
+        f_regex: ((AccountKey|accountkey)["\s]*[:=]["\s]*['"]?([A-Za-z0-9/+=]{40,80})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: GCP Service Account
+        loaded: true
+        f_regex: ((private_key_id|private_key|client_email|client_id)["\s]*[:=]["\s]*['"]?([^'",\s]{10,100})['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: red
+        scope: response body
+        engine: nfa
+        sensitive: false
+      - name: Cloud Storage Bucket
+        loaded: true
+        f_regex: ((oss-cn-|oss-us-|oss-ap-|cos-|s3-|bucket)["\s]*[:=]["\s]*['"]?([a-z0-9-]+)['"]?)
+        s_regex: ''
+        format: '{0}'
+        color: yellow
+        scope: response body
+        engine: nfa
+        sensitive: false
