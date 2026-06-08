@@ -24,6 +24,7 @@ public class Main {
     private static ConfigLoader config = null;
     private static List<String> regexPatterns = new ArrayList<String>();
     private static String decryptKey = null;
+    private static String decryptDictPath = null;
 
     public static String getRulesPath() {
         return rulesPath;
@@ -43,6 +44,10 @@ public class Main {
 
     public static String getDecryptKey() {
         return decryptKey;
+    }
+
+    public static String getDecryptDictPath() {
+        return decryptDictPath;
     }
 
     public static String run(String[] args) throws Exception {
@@ -152,6 +157,16 @@ public class Main {
             }
         }
 
+        // Check for decrypt dictionary
+        if (_main.flag.contains("--decrypt-dict")) {
+            int dictIndex = _main.flag.indexOf("--decrypt-dict");
+            if (dictIndex + 1 < _main.flag.size()) {
+                decryptDictPath = _main.flag.get(dictIndex + 1);
+                _main.flag.remove(dictIndex + 1);
+                _main.flag.remove(dictIndex);
+            }
+        }
+
         // Check for regex patterns (-reg)
         while (_main.flag.contains("-reg")) {
             int regIndex = _main.flag.indexOf("-reg");
@@ -186,6 +201,7 @@ public class Main {
         System.out.println("  -out <path>           Output results to file");
         System.out.println("  -reg <pattern>        Regex search pattern (can be used multiple times)");
         System.out.println("  --decrypt-key <key>   Decryption key for encrypted configs");
+        System.out.println("  --decrypt-dict <path> Decryption dictionary file (one password per line)");
         System.out.println("  export-strings        Export all strings from heap dump");
         System.out.println("  -h, --help            Show this help message");
         System.out.println();

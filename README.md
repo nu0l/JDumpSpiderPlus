@@ -77,6 +77,7 @@ java -jar JDumpSpiderPlus.jar -u <url> [options]
 | `-out <path>` | 输出结果到文件 | `-out result.txt` |
 | `-reg <pattern>` | 自定义正则搜索 (可多次使用) | `-reg "password" -reg "secret.*="` |
 | `--decrypt-key <key>` | 指定加密配置解密密钥 | `--decrypt-key mySecretKey` |
+| `--decrypt-dict <path>` | 密码字典文件 (每行一个密码) | `--decrypt-dict passwords.txt` |
 | `export-strings` | 导出堆中所有字符串 | `export-strings` |
 | `-h, --help` | 显示帮助信息 | |
 
@@ -119,6 +120,9 @@ java -jar JDumpSpiderPlus.jar heapdump.hprof
 
 # 指定解密密钥 (jasypt)
 java -jar JDumpSpiderPlus.jar heapdump.hprof --decrypt-key mySecretKey
+
+# 使用密码字典文件 (每行一个密码)
+java -jar JDumpSpiderPlus.jar heapdump.hprof --decrypt-dict /path/to/passwords.txt
 ```
 
 **支持的加密格式：**
@@ -127,6 +131,11 @@ java -jar JDumpSpiderPlus.jar heapdump.hprof --decrypt-key mySecretKey
 - druid RSA 加密
 - Base64 编码值
 - Hex 编码值
+
+**解密优先级：**
+1. `--decrypt-key` 指定的密钥
+2. `--decrypt-dict` 字典文件中的密码
+3. 内置弱密码字典自动尝试
 
 ### 输出格式
 
@@ -204,18 +213,28 @@ mvn clean package -DskipTests
 ## 版本历史
 
 ### v2.4.0 (2026-06-08)
-- 新增内存马检测 (8种类型)
-- 新增加密配置识别与自动解密
+- 新增内存马检测 (8种类型: Filter/Servlet/Listener/Controller/Interceptor/WebSocket/Agent/Valve)
+- 新增加密配置识别与自动解密 (jasypt/druid/Spring Cloud/Vault)
 - 新增 JWT 密钥提取
 - 新增 Session 信息提取
 - 新增 URL/IP/文件路径提取
 - 新增 `-reg` 自定义正则搜索参数
 - 新增 `--decrypt-key` 解密密钥参数
+- 新增 `--decrypt-dict` 密码字典文件参数
 - 修复 Map Entry 扫描模式匹配
 - 优化文件路径过滤减少误报
 
 ### v2.3.2
+- 新增 HaE 规则引擎集成
+- 新增 MongoDB/Kafka/RabbitMQ/Elasticsearch/Nacos 提取器
+- 新增 URL 下载功能 (`-u` 参数)
+- 新增代理支持 (`--proxy` 参数)
+- 新增 JSON/Excel 输出格式
+- 新增并行扫描优化
+
+### v1.1 (原版 JDumpSpider)
 - 初始版本
+- 支持 Spring DataSource/Redis/ShiroKey 等提取
 
 ## 致谢
 

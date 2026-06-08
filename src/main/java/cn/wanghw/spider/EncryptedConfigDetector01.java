@@ -39,6 +39,13 @@ public class EncryptedConfigDetector01 implements ISpider {
     public String sniff(IHeapHolder heapHolder) {
         StringBuilder result = new StringBuilder();
         String userKey = Main.getDecryptKey();
+        String dictPath = Main.getDecryptDictPath();
+
+        // Load dictionary if specified
+        List<String> dictPasswords = new ArrayList<String>();
+        if (dictPath != null && !dictPath.isEmpty()) {
+            dictPasswords = DecryptUtils.loadDictFile(dictPath);
+        }
 
         try {
             List<EncryptedItem> encryptedItems = new ArrayList<EncryptedItem>();
@@ -119,12 +126,23 @@ public class EncryptedConfigDetector01 implements ISpider {
             // 5. try to decrypt
             List<DecryptResult> decryptResults = new ArrayList<DecryptResult>();
             for (EncryptedItem item : encryptedItems) {
-                DecryptResult dr;
+                DecryptResult dr = null;
+
+                // Try user-specified key first
                 if (userKey != null) {
                     dr = DecryptUtils.autoDecryptWithKey(item.value, userKey);
-                } else {
+                }
+
+                // Try dictionary file
+                if (dr == null && !dictPasswords.isEmpty()) {
+                    dr = tryDecryptWithDict(item.value, dictPasswords);
+                }
+
+                // Try built-in weak passwords
+                if (dr == null) {
                     dr = DecryptUtils.autoDecrypt(item.value);
                 }
+
                 if (dr != null) {
                     decryptResults.add(dr);
                 }
@@ -250,6 +268,39 @@ public class EncryptedConfigDetector01 implements ISpider {
             if (lower.contains(pattern)) return true;
         }
         return false;
+    }
+
+    private DecryptResult tryDecryptWithDict(String value, List<String> dictPasswords) {
+        // Extract ENC value if needed
+        String encValue = DecryptUtils.extractEncValue(value);
+        if (encValue == null) encValue = value;
+
+        // Try each password in dictionary
+        for (String pwd : dictPasswords) {
+            // Try jasypt decrypt
+            String decrypted = DecryptUtils.tryJasyptDecrypt(encValue, pwd);
+            if (decrypted != null) {
+                return new DecryptResult(value, decrypted, "jasypt(dict)", pwd);
+            }
+        }
+
+        // Try base64 decode
+        if (DecryptUtils.isBase64Format(value)) {
+            String decoded = DecryptUtils.tryBase64Decode(value);
+            if (decoded != null) {
+                return new DecryptResult(value, decoded, "Base64", null);
+            }
+        }
+
+        // Try hex decode
+        if (DecryptUtils.isHexFormat(value)) {
+            String decoded = DecryptUtils.tryHexDecode(value);
+            if (decoded != null) {
+                return new DecryptResult(value, decoded, "Hex", null);
+            }
+        }
+
+        return null;
     }
 
     private String detectEncryptedFormat(String value) {

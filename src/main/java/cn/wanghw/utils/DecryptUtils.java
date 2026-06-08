@@ -6,6 +6,9 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -29,6 +32,37 @@ public class DecryptUtils {
 
     public static String[] getWeakPasswords() {
         return WEAK_PASSWORDS;
+    }
+
+    /**
+     * Load passwords from dictionary file (one password per line)
+     */
+    public static List<String> loadDictFile(String dictPath) {
+        List<String> passwords = new ArrayList<String>();
+        if (dictPath == null || dictPath.isEmpty()) return passwords;
+
+        File file = new File(dictPath);
+        if (!file.exists() || !file.isFile()) {
+            System.out.println("[-] Dictionary file not found: " + dictPath);
+            return passwords;
+        }
+
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty() && !line.startsWith("#")) {
+                    passwords.add(line);
+                }
+            }
+            reader.close();
+            System.out.println("[+] Loaded " + passwords.size() + " passwords from dictionary");
+        } catch (Exception e) {
+            System.out.println("[-] Failed to load dictionary: " + e.getMessage());
+        }
+
+        return passwords;
     }
 
     // ============ 格式判断 ============
