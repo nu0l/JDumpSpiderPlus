@@ -224,13 +224,20 @@ mvn clean package -DskipTests
 - 修复 Map Entry 扫描模式匹配
 - 优化文件路径过滤减少误报
 
-### v2.3.2
-- 新增 HaE 规则引擎集成
-- 新增 MongoDB/Kafka/RabbitMQ/Elasticsearch/Nacos 提取器
+### v2.3 (2024-03-22)
+- 新增姓名、邮箱、手机号、地址、身份证字段匹配规则
 - 新增 URL 下载功能 (`-u` 参数)
 - 新增代理支持 (`--proxy` 参数)
-- 新增 JSON/Excel 输出格式
-- 新增并行扫描优化
+- 新增 JSON 输出格式
+
+### v2.1 (2023-04-06)
+- 优化正则规则以适应 HeapDump 扫描场景
+- 修复资源泄漏和死代码清理
+
+### v2.0 (2023-02-02)
+- 从 JDumpSpider 升级为 JDumpSpiderPlus
+- 集成 HaE 规则引擎
+- 新增 MongoDB/Kafka/RabbitMQ/Elasticsearch/Nacos 提取器
 
 ### v1.1 (原版 JDumpSpider)
 - 初始版本
