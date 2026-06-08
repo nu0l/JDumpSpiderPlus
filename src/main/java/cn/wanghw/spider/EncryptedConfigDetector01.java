@@ -264,6 +264,18 @@ public class EncryptedConfigDetector01 implements ISpider {
 
     private boolean isSensitiveKey(String key) {
         String lower = key.toLowerCase();
+
+        // filter out false positives
+        // Java internal keys
+        if (lower.startsWith("alg.") || lower.startsWith("ssl.") || lower.startsWith("jdk.")) return false;
+        if (lower.startsWith("sun.") || lower.startsWith("com.sun.")) return false;
+        if (lower.contains("algorithm") && !lower.contains("key")) return false;
+        if (lower.contains("alias")) return false;
+        if (lower.contains("validity")) return false;
+
+        // filter constants-like keys (all uppercase and long)
+        if (key.equals(key.toUpperCase()) && key.length() > 20) return false;
+
         for (String pattern : SENSITIVE_KEY_PATTERNS) {
             if (lower.contains(pattern)) return true;
         }
@@ -315,14 +327,17 @@ public class EncryptedConfigDetector01 implements ISpider {
         // vault reference
         if (VAULT_PATTERN.matcher(value).find()) return "vault";
 
-        // Base64 (long enough and looks like base64)
-        if (value.length() >= 16 && DecryptUtils.isBase64Format(value)) {
-            // check if it's likely encrypted (not just a regular base64 string)
-            if (value.length() >= 24) return "Base64(encrypted)";
+        // Base64 - only flag if it's very long and looks like actual encrypted data
+        // Short Base64 strings are likely API keys, not encrypted values
+        if (value.length() >= 48 && DecryptUtils.isBase64Format(value)) {
+            // check if it has padding (typical of encrypted data)
+            if (value.endsWith("=") || value.endsWith("==")) return "Base64(encrypted)";
+            // or if it's very long
+            if (value.length() >= 64) return "Base64(encrypted)";
         }
 
-        // Hex (long enough and looks like hex)
-        if (value.length() >= 32 && DecryptUtils.isHexFormat(value)) {
+        // Hex - only flag if it's very long
+        if (value.length() >= 64 && DecryptUtils.isHexFormat(value)) {
             return "Hex(encrypted)";
         }
 
