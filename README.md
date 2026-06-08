@@ -104,13 +104,27 @@ java -jar JDumpSpiderPlus.jar heapdump export-strings
 ### 命令行参数
 
 ```
-JDumpSpiderPlus v2.1 - HeapDump Sensitive Information Extractor
-Usage: java -jar JDumpSpiderPlus.jar <heapfile> [options]
+JDumpSpiderPlus v2.3 - HeapDump Sensitive Information Extractor
+
+Usage:
+  java -jar JDumpSpiderPlus.jar <heapfile> [options]
+  java -jar JDumpSpiderPlus.jar -u <url> [options]
+
 Options:
+  -u <url>          Download heapdump from URL
+  --proxy <proxy>   Set proxy (http://host:port)
+  --header <header> Add HTTP header (can be used multiple times)
   --rules <path>    Load custom HaE rules YAML file
+  --format <format> Output format: text (default), json
   -out <path>       Output results to file
   export-strings    Export all strings from heap dump
   -h, --help        Show this help message
+
+Examples:
+  java -jar JDumpSpiderPlus.jar heapdump.hprof
+  java -jar JDumpSpiderPlus.jar -u http://target.com/actuator/heapdump
+  java -jar JDumpSpiderPlus.jar -u http://target.com/actuator/heapdump --proxy http://127.0.0.1:8080
+  java -jar JDumpSpiderPlus.jar heapdump.hprof --format json
 ```
 
 ### 输出说明
@@ -137,7 +151,7 @@ cd ..
 mvn package
 ```
 
-编译完成后，目标文件在`target/JDumpSpiderPlus-2.0-SNAPSHOT-full.jar`。
+编译完成后，目标文件在`target/JDumpSpiderPlus-2.3-SNAPSHOT-full.jar`。
 
 ## 自定义规则
 
@@ -172,28 +186,75 @@ rules:
 | engine | 正则引擎 | nfa（支持捕获组）/ dfa（快速匹配） |
 | sensitive | 大小写敏感 | true/false |
 
+## 配置文件
+
+支持YAML格式的配置文件，配置文件位置：
+
+- 内置配置：`src/main/resources/config.yml`
+- 用户配置：`~/.jdumpspider/config.yml`
+- 当前目录：`./config.yml`
+
+配置优先级：命令行参数 > 用户目录配置 > 当前目录配置 > 内置配置
+
+### 配置示例
+
+```yaml
+# 扫描设置
+scan:
+  max-strings: 2000000        # 最大字符串数量
+  max-match-per-rule: 5000    # 每个规则最大匹配数
+  threads: 0                  # 并行线程数 (0=CPU核心数)
+  timeout: 300                # 超时时间（秒）
+
+# 输出设置
+output:
+  format: text                # 输出格式: text, json
+  save-to-file: true          # 是否保存到文件
+  output-dir: results         # 输出目录
+
+# 代理设置
+proxy:
+  url: http://127.0.0.1:8080  # 代理地址
+
+# 规则设置
+rules:
+  use-builtin: true           # 是否使用内置规则
+  custom-rules: null          # 自定义规则文件路径
+  hae-rules: true             # 是否启用HaE规则
+```
+
 ## 技术架构
 
 ```
 JDumpSpiderPlus/
 ├── cn.wanghw/
-│   ├── Main.java              # 主入口
-│   ├── ISpider.java           # Spider接口
-│   ├── IHeapHolder.java       # Heap抽象接口
-│   ├── spider/                # 内置提取器
-│   │   ├── DataSource01-05    # 数据源提取器
-│   │   ├── Redis01-02         # Redis提取器
-│   │   ├── ShiroKey01         # ShiroKey提取器
-│   │   ├── PropertySource01-05# 配置文件提取器
-│   │   ├── UserPassSearcher01 # 用户信息提取器
-│   │   ├── CookieThief        # Cookie提取器
-│   │   ├── AuthThief          # 认证信息提取器
-│   │   └── HeapdumpRegexSpider# HaE规则引擎（新增）
-│   └── har/                   # HaE规则相关（新增）
-│       ├── RuleDefinition     # 规则定义模型
-│       ├── Group              # 规则分组模型
-│       └── HaERulesLoader     # YAML规则加载器
-└── org.graalvm/               # Heap解析库
+│   ├── Main.java                    # 主入口
+│   ├── ISpider.java                 # Spider接口
+│   ├── IHeapHolder.java             # Heap抽象接口
+│   ├── spider/                      # 内置提取器
+│   │   ├── DataSource01-05          # 数据源提取器
+│   │   ├── Redis01-03               # Redis提取器（含集群/哨兵）
+│   │   ├── MongoDB01                # MongoDB提取器
+│   │   ├── Kafka01                  # Kafka提取器
+│   │   ├── RabbitMQ01               # RabbitMQ提取器
+│   │   ├── Elasticsearch01          # Elasticsearch提取器
+│   │   ├── Nacos01                  # Nacos提取器
+│   │   ├── ShiroKey01               # ShiroKey提取器
+│   │   ├── PropertySource01-05      # 配置文件提取器
+│   │   ├── UserPassSearcher01       # 用户信息提取器
+│   │   ├── CookieThief              # Cookie提取器
+│   │   ├── AuthThief                # 认证信息提取器
+│   │   └── HeapdumpRegexSpiderParallel  # HaE规则引擎（并行版）
+│   ├── har/                         # HaE规则相关
+│   │   ├── RuleDefinition           # 规则定义模型
+│   │   ├── Group                    # 规则分组模型
+│   │   └── HaERulesLoader           # YAML规则加载器
+│   └── utils/                       # 工具类
+│       ├── ConfigLoader             # 配置文件加载器
+│       ├── HttpDownloader           # HTTP下载器
+│       ├── JsonOutputFormatter      # JSON格式化器
+│       └── LuhnValidator            # Luhn算法验证器
+└── org.graalvm/                     # Heap解析库
 ```
 
 ## 与原版JDumpSpider的区别
@@ -201,13 +262,20 @@ JDumpSpiderPlus/
 | 特性 | JDumpSpider | JDumpSpiderPlus |
 |------|-------------|-----------------|
 | 数据源提取 | ✓ | ✓ |
-| Redis配置提取 | ✓ | ✓ |
+| Redis配置提取 | ✓ | ✓（含集群/哨兵） |
 | ShiroKey提取 | ✓ | ✓ |
 | 配置文件提取 | ✓ | ✓ |
+| 中间件提取 | ✗ | ✓（Kafka/RabbitMQ/ES/Nacos） |
 | 正则规则引擎 | ✗ | ✓（HaE集成） |
 | 邮箱/手机号/身份证匹配 | ✗ | ✓ |
 | URL/路径提取 | ✗ | ✓ |
+| 云服务密钥检测 | ✗ | ✓（阿里/腾讯/华为/AWS/Azure/GCP） |
 | 自定义规则 | ✗ | ✓（YAML格式） |
+| URL下载 | ✗ | ✓（-u参数） |
+| 代理支持 | ✗ | ✓（--proxy参数） |
+| JSON输出 | ✗ | ✓（--format json） |
+| 并行处理 | ✗ | ✓（多线程扫描） |
+| 配置文件 | ✗ | ✓（config.yml） |
 | 结果自动保存 | ✗ | ✓（results/目录） |
 
 ## 致谢
