@@ -3,3 +3,6 @@
 /.idea
 /*.iml
 dependency-reduced-pom.xml
+results/
+*.hprof
+*.txt

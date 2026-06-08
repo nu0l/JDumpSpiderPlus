@@ -12,9 +12,20 @@ import java.util.List;
 
 public class Main {
 
+    public static final String VERSION = "2.0";
     private File heapfile;
     private final List<String> flag = new LinkedList<String>();
     static PrintStream out = null;
+    private static String rulesPath = null;
+    private static String heapFilePath = null;
+
+    public static String getRulesPath() {
+        return rulesPath;
+    }
+
+    public static String getHeapFilePath() {
+        return heapFilePath;
+    }
 
     public static String run(String[] args) throws Exception {
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -22,7 +33,14 @@ public class Main {
             out = new PrintStream(bout);
         }
         if (args.length < 1) {
-            System.out.println("please give a heap filepath.");
+            System.out.println("JDumpSpiderPlus v" + VERSION + " - HeapDump Sensitive Information Extractor");
+            System.out.println("Usage: java -jar JDumpSpiderPlus.jar <heapfile> [options]");
+            System.out.println("Options:");
+            System.out.println("  --rules <path>    Load custom HaE rules YAML file");
+            System.out.println("  -out <path>       Output results to file");
+            System.out.println("  export-strings    Export all strings from heap dump");
+            System.out.println("  -h, --help        Show this help message");
+            return "";
         } else {
             Main _main = new Main();
             _main.heapfile = new File(args[0]);
@@ -82,10 +100,12 @@ public class Main {
             new OSS01(),
             new UserPassSearcher01(),
             new CookieThief(),
-            new AuthThief()
+            new AuthThief(),
+            new HeapdumpRegexSpider()
     };
 
     public int call(PrintStream out) throws Exception {
+        heapFilePath = heapfile.getAbsolutePath();
         int ver = getFileVersion();
         float classVersion = Float.parseFloat(System.getProperty("java.class.version"));
         IHeapHolder heapHolder;
@@ -104,8 +124,43 @@ public class Main {
             System.out.println("[+] Output to: " + outFilePath);
             out = new PrintStream(new FileOutputStream(outFilePath), true);
         }
+        if (flag.contains("--rules")) {
+            rulesPath = getArgValue("--rules");
+            System.out.println("[+] HaE rules file: " + rulesPath);
+        }
+
+        // Capture tool results for file output
+        ByteArrayOutputStream toolCapture = new ByteArrayOutputStream();
+        PrintStream toolFileOut = new PrintStream(toolCapture, true);
+
+        // Print header
+        String header = "===========================================\n" +
+                "JDumpSpiderPlus v" + VERSION + " Scan Results\n" +
+                "Heap File: " + heapFilePath + "\n" +
+                "===========================================\n";
+        out.println(header);
+        toolFileOut.println(header);
+
+        // Run built-in spiders (except regex spider)
         for (ISpider spider : allSpiders) {
-            spiderCall(spider, heapHolder, out);
+            if (spider instanceof HeapdumpRegexSpider) {
+                continue; // Handle separately
+            }
+            spiderCallDual(spider, heapHolder, out, toolFileOut);
+        }
+
+        // Save tool results to file
+        saveToolResults(toolCapture.toString());
+        toolFileOut.close();
+
+        // Run regex spider (results saved separately by the spider itself)
+        for (ISpider spider : allSpiders) {
+            if (spider instanceof HeapdumpRegexSpider) {
+                out.println("\n===========================================");
+                out.println("HaE Rules Scan");
+                out.println("===========================================\n");
+                spiderCall(spider, heapHolder, out);
+            }
         }
         out.println("===========================================");
         return 0;
@@ -129,6 +184,51 @@ public class Main {
         } else {
             out.println("not found!\r\n");
         }
+    }
+
+    private void spiderCallDual(ISpider spider, IHeapHolder heapHolder, PrintStream consoleOut, PrintStream fileOut) {
+        String section = "===========================================\n" +
+                spider.getName() + "\n" +
+                "-------------\n";
+        String result = spider.sniff(heapHolder);
+        String content;
+        if (!(result == null) && !result.equals("")) {
+            content = section + result + "\n";
+        } else {
+            content = section + "not found!\n\n";
+        }
+        consoleOut.print(content);
+        fileOut.print(content);
+    }
+
+    private void saveToolResults(String content) {
+        try {
+            File resultsDir = getResultsDir();
+            File outFile = new File(resultsDir, "tool_scan.txt");
+            PrintWriter pw = new PrintWriter(new FileOutputStream(outFile), true);
+            pw.print(content);
+            pw.close();
+            System.out.println("[+] Tool results saved to: " + outFile.getAbsolutePath());
+        } catch (Exception e) {
+            System.out.println("[-] Failed to save tool results: " + e.getMessage());
+        }
+    }
+
+    private File getResultsDir() {
+        File resultsDir = new File(heapfile.getParent(), "results");
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+        return resultsDir;
+    }
+
+    public static File getResultsDir(String heapFilePath) {
+        File heapFile = new File(heapFilePath);
+        File resultsDir = new File(heapFile.getParent(), "results");
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+        return resultsDir;
     }
 
     public int getFileVersion() {
