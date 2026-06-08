@@ -177,7 +177,7 @@ rules:
         engine: nfa
         sensitive: true
       - name: Bank Card Number
-        loaded: true
+        loaded: false
         f_regex: '(([3-6]\d{15,18})(?!\d))'
         s_regex: ''
         format: '{0}'
@@ -186,7 +186,7 @@ rules:
         engine: nfa
         sensitive: true
       - name: Social Credit Code
-        loaded: true
+        loaded: false
         f_regex: '([0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{10})'
         s_regex: ''
         format: '{0}'
@@ -333,7 +333,7 @@ rules:
         engine: nfa
         sensitive: false
       - name: URL Schemes
-        loaded: true
+        loaded: false
         f_regex: (\b(?![\w]{0,10}?https?://)(([A-Za-z0-9-\.]{1,20})://([-\w+&@#/%?=~_|!:,.;]*[-\w+&@#/%=~_|])?))
         s_regex: ''
         format: '{0}'
@@ -443,7 +443,7 @@ rules:
         engine: nfa
         sensitive: false
       - name: Internal Domain
-        loaded: true
+        loaded: false
         f_regex: (([a-z0-9-]+\.)+(local|internal|corp|intra|priv))
         s_regex: ''
         format: '{0}'
