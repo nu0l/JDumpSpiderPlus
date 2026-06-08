@@ -1,23 +1,24 @@
 package cn.wanghw;
 
 import cn.wanghw.spider.*;
+import cn.wanghw.utils.HttpDownloader;
+import cn.wanghw.utils.JsonOutputFormatter;
 import org.graalvm.visualvm.lib.jfluid.heap.GraalvmHeapHolder;
 import org.netbeans.lib.profiler.heap.NetbeansHeapHolder;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class Main {
 
-    public static final String VERSION = "2.1";
+    public static final String VERSION = "2.2";
     private File heapfile;
     private final List<String> flag = new LinkedList<String>();
     static PrintStream out = null;
     private static String rulesPath = null;
     private static String heapFilePath = null;
+    private static String outputFormat = "text"; // text or json
 
     public static String getRulesPath() {
         return rulesPath;
@@ -33,27 +34,118 @@ public class Main {
             out = new PrintStream(bout);
         }
         if (args.length < 1) {
-            System.out.println("JDumpSpiderPlus v" + VERSION + " - HeapDump Sensitive Information Extractor");
-            System.out.println("Usage: java -jar JDumpSpiderPlus.jar <heapfile> [options]");
-            System.out.println("Options:");
-            System.out.println("  --rules <path>    Load custom HaE rules YAML file");
-            System.out.println("  -out <path>       Output results to file");
-            System.out.println("  export-strings    Export all strings from heap dump");
-            System.out.println("  -h, --help        Show this help message");
+            printUsage();
             return "";
-        } else {
-            Main _main = new Main();
-            _main.heapfile = new File(args[0]);
-            if (_main.heapfile.exists() && _main.heapfile.isFile()) {
-                if (args.length > 1) {
-                    _main.flag.addAll(Arrays.asList(args).subList(1, args.length));
+        }
+
+        // Parse arguments
+        List<String> argList = new ArrayList<String>(Arrays.asList(args));
+        Main _main = new Main();
+
+        // Check for help
+        if (argList.contains("-h") || argList.contains("--help")) {
+            printUsage();
+            return "";
+        }
+
+        // Check for URL download mode
+        if (argList.contains("-u")) {
+            int urlIndex = argList.indexOf("-u");
+            if (urlIndex + 1 >= argList.size()) {
+                System.out.println("[-] Missing URL after -u");
+                return "";
+            }
+            String url = argList.get(urlIndex + 1);
+            argList.remove(urlIndex + 1);
+            argList.remove(urlIndex);
+
+            // Setup downloader
+            HttpDownloader downloader = new HttpDownloader();
+            if (argList.contains("--proxy")) {
+                int proxyIndex = argList.indexOf("--proxy");
+                if (proxyIndex + 1 < argList.size()) {
+                    downloader.setProxy(argList.get(proxyIndex + 1));
+                    argList.remove(proxyIndex + 1);
+                    argList.remove(proxyIndex);
                 }
-                _main.call(out);
-            } else {
-                System.out.println("file not exist!");
+            }
+            if (argList.contains("--header")) {
+                int headerIndex = argList.indexOf("--header");
+                while (headerIndex != -1 && headerIndex + 1 < argList.size()) {
+                    String headerValue = argList.get(headerIndex + 1);
+                    int colonIndex = headerValue.indexOf(":");
+                    if (colonIndex > 0) {
+                        downloader.addHeader(headerValue.substring(0, colonIndex).trim(),
+                                headerValue.substring(colonIndex + 1).trim());
+                    }
+                    argList.remove(headerIndex + 1);
+                    argList.remove(headerIndex);
+                    headerIndex = argList.indexOf("--header");
+                }
+            }
+
+            // Download heapdump
+            System.out.println("[*] Downloading heapdump from: " + url);
+            try {
+                _main.heapfile = downloader.download(url);
+                System.out.println("[+] Downloaded to: " + _main.heapfile.getAbsolutePath());
+            } catch (Exception e) {
+                System.out.println("[-] Download failed: " + e.getMessage());
+                return "";
+            }
+        } else {
+            // Local file mode
+            if (argList.isEmpty()) {
+                printUsage();
+                return "";
+            }
+            _main.heapfile = new File(argList.get(0));
+            argList.remove(0);
+            if (!_main.heapfile.exists() || !_main.heapfile.isFile()) {
+                System.out.println("[-] File not found: " + _main.heapfile.getAbsolutePath());
+                return "";
             }
         }
+
+        // Parse remaining flags
+        _main.flag.addAll(argList);
+
+        // Check for output format
+        if (_main.flag.contains("--format")) {
+            int formatIndex = _main.flag.indexOf("--format");
+            if (formatIndex + 1 < _main.flag.size()) {
+                outputFormat = _main.flag.get(formatIndex + 1);
+                _main.flag.remove(formatIndex + 1);
+                _main.flag.remove(formatIndex);
+            }
+        }
+
+        _main.call(out);
         return bout.toString();
+    }
+
+    private static void printUsage() {
+        System.out.println("JDumpSpiderPlus v" + VERSION + " - HeapDump Sensitive Information Extractor");
+        System.out.println();
+        System.out.println("Usage:");
+        System.out.println("  java -jar JDumpSpiderPlus.jar <heapfile> [options]");
+        System.out.println("  java -jar JDumpSpiderPlus.jar -u <url> [options]");
+        System.out.println();
+        System.out.println("Options:");
+        System.out.println("  -u <url>          Download heapdump from URL");
+        System.out.println("  --proxy <proxy>   Set proxy (http://host:port)");
+        System.out.println("  --header <header> Add HTTP header (can be used multiple times)");
+        System.out.println("  --rules <path>    Load custom HaE rules YAML file");
+        System.out.println("  --format <format> Output format: text (default), json");
+        System.out.println("  -out <path>       Output results to file");
+        System.out.println("  export-strings    Export all strings from heap dump");
+        System.out.println("  -h, --help        Show this help message");
+        System.out.println();
+        System.out.println("Examples:");
+        System.out.println("  java -jar JDumpSpiderPlus.jar heapdump.hprof");
+        System.out.println("  java -jar JDumpSpiderPlus.jar -u http://target.com/actuator/heapdump");
+        System.out.println("  java -jar JDumpSpiderPlus.jar -u http://target.com/actuator/heapdump --proxy http://127.0.0.1:8080");
+        System.out.println("  java -jar JDumpSpiderPlus.jar heapdump.hprof --format json");
     }
 
     public static String runAsync(final String[] args) throws Exception {
@@ -128,6 +220,9 @@ public class Main {
             System.out.println("[+] HaE rules file: " + rulesPath);
         }
 
+        // Collect results for JSON output
+        Map<String, List<String>> allResults = new LinkedHashMap<String, List<String>>();
+
         // Capture tool results for file output
         ByteArrayOutputStream toolCapture = new ByteArrayOutputStream();
         PrintStream toolFileOut = new PrintStream(toolCapture, true);
@@ -137,7 +232,9 @@ public class Main {
                 "JDumpSpiderPlus v" + VERSION + " Scan Results\n" +
                 "Heap File: " + heapFilePath + "\n" +
                 "===========================================\n";
-        out.println(header);
+        if (!"json".equals(outputFormat)) {
+            out.println(header);
+        }
         toolFileOut.println(header);
 
         // Run built-in spiders (except regex spider)
@@ -145,7 +242,29 @@ public class Main {
             if (spider instanceof HeapdumpRegexSpider) {
                 continue; // Handle separately
             }
-            spiderCallDual(spider, heapHolder, out, toolFileOut);
+            String result = spider.sniff(heapHolder);
+            String spiderName = spider.getName();
+
+            // Collect for JSON
+            if (result != null && !result.isEmpty()) {
+                List<String> lines = new ArrayList<String>(Arrays.asList(result.split("\n")));
+                allResults.put(spiderName, lines);
+            }
+
+            // Print for text format
+            if (!"json".equals(outputFormat)) {
+                String section = "===========================================\n" +
+                        spiderName + "\n" +
+                        "-------------\n";
+                String content;
+                if (result != null && !result.isEmpty()) {
+                    content = section + result + "\n";
+                } else {
+                    content = section + "not found!\n\n";
+                }
+                out.print(content);
+                toolFileOut.print(content);
+            }
         }
 
         // Save tool results to file
@@ -155,13 +274,25 @@ public class Main {
         // Run regex spider (results saved separately by the spider itself)
         for (ISpider spider : allSpiders) {
             if (spider instanceof HeapdumpRegexSpider) {
-                out.println("\n===========================================");
-                out.println("HaE Rules Scan");
-                out.println("===========================================\n");
-                spiderCall(spider, heapHolder, out);
+                String result = spider.sniff(heapHolder);
+                if (result != null && !result.isEmpty()) {
+                    allResults.put("HaE Rules Scan", Arrays.asList(result.split("\n")));
+                }
+                if (!"json".equals(outputFormat)) {
+                    out.println("\n===========================================");
+                    out.println("HaE Rules Scan");
+                    out.println("===========================================\n");
+                    out.println(result);
+                }
             }
         }
-        out.println("===========================================");
+
+        // Output JSON format
+        if ("json".equals(outputFormat)) {
+            out.println(JsonOutputFormatter.format(allResults));
+        } else {
+            out.println("===========================================");
+        }
         return 0;
     }
 
