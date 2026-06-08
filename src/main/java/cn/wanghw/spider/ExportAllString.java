@@ -16,13 +16,14 @@ public class ExportAllString implements ISpider {
     public String sniff(IHeapHolder heapHolder) {
         try {
             File outFile = new File(System.nanoTime() + ".txt");
-            PrintWriter pw = new PrintWriter(new FileOutputStream(outFile));
-            System.out.println("[+] Output to: " + outFile.getAbsolutePath());
-            Object clazz = heapHolder.findClass("java.lang.String");
-            if (clazz == null)
-                return null;
-            for (Object instance : heapHolder.getInstances(clazz)) {
-                pw.println(heapHolder.toString(instance));
+            try (PrintWriter pw = new PrintWriter(new FileOutputStream(outFile))) {
+                System.out.println("[+] Output to: " + outFile.getAbsolutePath());
+                Object clazz = heapHolder.findClass("java.lang.String");
+                if (clazz == null)
+                    return null;
+                for (Object instance : heapHolder.getInstances(clazz)) {
+                    pw.println(heapHolder.toString(instance));
+                }
             }
         } catch (Exception ex) {
             System.out.println(ex);

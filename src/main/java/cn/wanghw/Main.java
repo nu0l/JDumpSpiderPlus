@@ -63,9 +63,9 @@ public class Main {
             public void run() {
                 try {
                     String result = Main.run(args);
-                    FileOutputStream fos = new FileOutputStream(args[1]);
-                    fos.write(result.getBytes());
-                    fos.close();
+                    try (FileOutputStream fos = new FileOutputStream(args[1])) {
+                        fos.write(result.getBytes());
+                    }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -94,7 +94,6 @@ public class Main {
             new PropertySource02(),
             new PropertySource03(),
             new PropertySource04(),
-////            new JwtKey01(),
             new PropertySource05(),
             new EnvProperty01(),
             new OSS01(),
@@ -232,8 +231,7 @@ public class Main {
     }
 
     public int getFileVersion() {
-        try {
-            FileInputStream io = new FileInputStream(heapfile);
+        try (FileInputStream io = new FileInputStream(heapfile)) {
             io.skip(17);
             byte subVersion = (byte) io.read();
             return Integer.parseInt(Character.valueOf((char) subVersion).toString());

@@ -1,7 +1,6 @@
 package org.graalvm.visualvm.lib.jfluid.heap;
 
 import cn.wanghw.IHeapHolder;
-import cn.wanghw.utils._StringJoiner;
 import org.graalvm.visualvm.lib.profiler.oql.engine.api.impl.Snapshot;
 
 import java.io.File;
@@ -256,9 +255,9 @@ public class GraalvmHeapHolder implements IHeapHolder {
 
     public String join(CharSequence delimiter,
                        Iterable<? extends CharSequence> elements) {
-        _StringJoiner.requireNonNull(delimiter);
-        _StringJoiner.requireNonNull(elements);
-        _StringJoiner joiner = new _StringJoiner(delimiter);
+        Objects.requireNonNull(delimiter);
+        Objects.requireNonNull(elements);
+        StringJoiner joiner = new StringJoiner(delimiter);
         for (CharSequence cs : elements) {
             joiner.add(cs);
         }
