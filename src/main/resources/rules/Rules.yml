@@ -133,7 +133,7 @@ rules:
     rule:
       - name: Email
         loaded: true
-        f_regex: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,5}'
+        f_regex: '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,5})'
         s_regex: ''
         format: '{0}'
         color: yellow
@@ -207,7 +207,7 @@ rules:
         sensitive: false
       - name: Windows File/Dir Path
         loaded: true
-        f_regex: '[a-zA-Z]:\\\\?(?:[^<>:/\\|?*]+\\\\?)*[^<>:/\\|?*]+(?:\.[^<>:/\\|?*]+)?'
+        f_regex: '([a-zA-Z]:\\\\?(?:[^<>:/\\|?*]+\\\\?)*[^<>:/\\|?*]+(?:\.[^<>:/\\|?*]+)?)'
         s_regex: ''
         format: '{0}'
         color: green
