@@ -1,0 +1,8 @@
+*.hprof
+*.hwcache
+tmp/
+target/
+*.class
+*.jar
+.DS_Store
+results/
