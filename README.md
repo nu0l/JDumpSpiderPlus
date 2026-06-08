@@ -185,8 +185,12 @@ JDumpSpiderPlus/
 
 ## 致谢
 
-- [JDumpSpider](https://github.com/whwlsfb/JDumpSpider) - 原版工具
-- [HaE](https://github.com/gh0stkey/HaE) - 正则规则引擎
+本项目基于以下优秀开源项目，特此感谢：
+
+- **[JDumpSpider](https://github.com/whwlsfb/JDumpSpider)** - 原版HeapDump敏感信息提取工具，由 [whwlsfb](https://github.com/whwlsfb) 开发
+- **[HaE](https://github.com/gh0stkey/HaE)** - 正则规则引擎，用于高亮和提取HTTP消息中的敏感信息，由 [gh0stkey](https://github.com/gh0stkey) 开发
+
+感谢原作者们的杰出工作！
 
 ## License
 
