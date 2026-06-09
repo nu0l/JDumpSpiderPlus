@@ -2,17 +2,16 @@ package cn.wanghw.spider;
 
 import cn.wanghw.IHeapHolder;
 import cn.wanghw.ISpider;
-import cn.wanghw.Main;
+import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.*;
 import java.util.regex.Pattern;
 
 public class MemShellDetector01 implements ISpider {
 
     private static final Pattern SUSPICIOUS_CLASS_PATTERN = Pattern.compile(
-            "(shell|evil|inject|memshell|backdoor|behinder|godzilla|ant|冰蝎|哥斯拉|蚁剑)",
+            "(shell|evil|inject|memshell|backdoor|behinder|godzilla|ant|冰蝎|哥斯拉|蚁剑|neoreg|rebeyond)",
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern RANDOM_NAME_PATTERN = Pattern.compile(
@@ -21,9 +20,15 @@ public class MemShellDetector01 implements ISpider {
     private static final String[] SYSTEM_CLASSLOADERS = {
             "sun.misc.Launcher$AppClassLoader",
             "sun.misc.Launcher$ExtClassLoader",
+            "jdk.internal.loader.ClassLoaders$AppClassLoader",
+            "jdk.internal.loader.ClassLoaders$PlatformClassLoader",
+            "jdk.internal.loader.BuiltinClassLoader",
             "java.lang.ClassLoader",
+            "java.net.URLClassLoader",
+            "java.security.SecureClassLoader",
             "org.apache.catalina.loader.WebappClassLoader",
-            "org.apache.catalina.loader.WebappClassLoaderBase"
+            "org.apache.catalina.loader.WebappClassLoaderBase",
+            "org.springframework.boot.loader.LaunchedURLClassLoader"
     };
 
     private static final String[] FILTER_DETECTOR_CLASSES = {
@@ -55,6 +60,112 @@ public class MemShellDetector01 implements ISpider {
             "org.apache.catalina.core.StandardContext"
     };
 
+    // ========== 增强: 危险类名列表 - 覆盖多种 bypass 手段 ==========
+
+    private static final String[] DANGEROUS_CLASS_NAMES = {
+            // 命令执行
+            "java.lang.Runtime",
+            "java.lang.ProcessBuilder",
+            "java.lang.UNIXProcess",
+            "java.lang.ProcessImpl",
+            // 反射链
+            "java.lang.reflect.Method",
+            "java.lang.reflect.Constructor",
+            "java.lang.reflect.Field",
+            "java.lang.reflect.Proxy",
+            "java.lang.reflect.InvocationHandler",
+            // TemplatesImpl 字节码注入
+            "com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl",
+            "com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet",
+            "org.apache.xalan.xsltc.trax.TemplatesImpl",
+            "org.apache.xalan.xsltc.runtime.AbstractTranslet",
+            // ScriptEngine 脚本引擎
+            "javax.script.ScriptEngine",
+            "javax.script.ScriptEngineManager",
+            "javax.script.ScriptEngineFactory",
+            "jdk.nashorn.api.scripting.NashornScriptEngine",
+            "org.mozilla.javascript.Context",
+            "groovy.lang.GroovyShell",
+            "groovy.lang.GroovyClassLoader",
+            // JNDI 注入
+            "javax.naming.directory.InitialDirContext",
+            "javax.naming.InitialContext",
+            "com.sun.jndi.rmi.object.trustURLCodebase",
+            // 加密相关 (用于编码 bypass)
+            "javax.crypto.Cipher",
+            "javax.crypto.spec.SecretKeySpec",
+            "javax.crypto.spec.IvParameterSpec",
+            // 反序列化
+            "java.io.ObjectInputStream",
+            "com.sun.rowset.CachedRowSetImpl",
+            // freemarker OGNL
+            "freemarker.template.utility.Execute",
+            "ognl.OgnlRuntime",
+            "ognl.OgnlContext",
+            // Spring 表达式
+            "org.springframework.expression.spel.standard.SpelExpressionParser",
+            "org.springframework.expression.Expression",
+    };
+
+    // ========== 增强: 危险字符串模式 - 覆盖更多 bypass 手段 ==========
+
+    private static final Pattern DANGEROUS_STRING_PATTERN = Pattern.compile(
+            "(" +
+            // 直接危险类名
+            "java\\.lang\\.Runtime|java\\.lang\\.ProcessBuilder|" +
+            "javax\\.script\\.ScriptEngine|javax\\.naming|" +
+            "com\\.sun\\.org\\.apache\\.xalan|" +
+            // 危险方法名
+            "getRuntime|ProcessBuilder|defineClass|loadClass|" +
+            "ClassLoader\\.define|sun\\.misc\\.Unsafe|" +
+            "newInstance|newInstance0|" +
+            "getMethod|getDeclaredMethod|getDeclaredField|" +
+            "setAccessible|invoke\\(|forName\\(" +
+            // JNDI/LDAP URL
+            "ldap://|rmi://|dns://|corba://|" +
+            "jndi:|InitialDirContext|InitialContext|" +
+            // TemplatesImpl 字段
+            "_bytecodes|_tfactory|_name|_outputProperties|" +
+            "getTransletInstance|newTransformer|" +
+            // 动态代理
+            "InvocationHandler|newProxyInstance|Proxy\\.new|" +
+            // ScriptEngine
+            "eval\\(|ScriptEngine|nashorn|rhino|groovy|" +
+            // 加密/编码 bypass
+            "Cipher|SecretKeySpec|encrypt|decrypt|AES|DES|RSA|" +
+            "doFinal|XOR|xor_encode|xor_decode|" +
+            // 反序列化
+            "ObjectInputStream|readObject|readUnserialize|" +
+            "ysoserial|CommonsCollections|CC[1-7]|" +
+            // 表达式注入
+            "SpEL|SpelExpression|OGNL|ognl\\.getValue|" +
+            "el-resolver|ExpressionFactory|" +
+            // 命令执行字符串
+            "cmd\\.exe|/bin/bash|/bin/sh|powershell|whoami|id;|ls -la|" +
+            // Base64 编码的危险关键词
+            "Y21kLmV4ZWN1dGU=|Y2FsYy5leGVj|" +  // cmd.execute / calc.exec
+            "amF2YS5sYW5nLlJ1bnRpbWU=|amF2YS5sYW5nLlByb2Nlc3NCdWlsZGVy|" +  // java.lang.Runtime / java.lang.ProcessBuilder
+            "L2Jpbi9zaA==|L2Jpbi9iYXNo|" +  // /bin/sh / /bin/bash
+            "Y21kLmV4ZQ==" +  // cmd.exe
+            ")",
+            Pattern.CASE_INSENSITIVE);
+
+    // ========== 增强: 可疑字段名 - 用于检测编码后的 payload ==========
+
+    private static final Pattern SUSPICIOUS_FIELD_NAME_PATTERN = Pattern.compile(
+            "(payload|shellcode|bytecode|_bytecodes|evil|shell|inject|" +
+            "cipher|encrypted|encoded|xor|key|secret|" +
+            "command|cmd|exec|eval|script)",
+            Pattern.CASE_INSENSITIVE);
+
+    // 白名单数据
+    private Set<String> safeClasses = new HashSet<String>();
+    private Set<String> safePackages = new HashSet<String>();
+    private Set<String> safeClassloaders = new HashSet<String>();
+    private Set<String> dangerousClassPatterns = new HashSet<String>();
+    private Set<String> dangerousMethodPatterns = new HashSet<String>();
+    private boolean whitelistLoaded = false;
+
     public String getName() {
         return "MemShellDetector";
     }
@@ -64,35 +175,30 @@ public class MemShellDetector01 implements ISpider {
         List<String[]> findings = new ArrayList<String[]>();
 
         try {
-            // 1. Filter type
+            loadWhitelist();
+
             detectFilterType(heapHolder, findings);
-
-            // 2. Servlet type
             detectServletType(heapHolder, findings);
-
-            // 3. Listener type
             detectListenerType(heapHolder, findings);
-
-            // 4. Controller type (Spring)
             detectControllerType(heapHolder, findings);
-
-            // 5. Interceptor type (Spring)
             detectInterceptorType(heapHolder, findings);
-
-            // 6. WebSocket type
             detectWebSocketType(heapHolder, findings);
-
-            // 7. Agent type
             detectAgentType(heapHolder, findings);
-
-            // 8. Valve type
             detectValveType(heapHolder, findings);
 
-            // format output
+            // 增强: 检测动态代理型内存马
+            detectProxyType(heapHolder, findings);
+
+            // 增强: 检测 TemplatesImpl 字节码注入
+            detectTemplatesImpl(heapHolder, findings);
+
             if (!findings.isEmpty()) {
                 for (String[] finding : findings) {
-                    result.append("[!] ").append(finding[0]).append("\r\n");
+                    String riskLevel = finding.length > 4 ? finding[4] : "MEDIUM";
+                    result.append(riskLevel.equals("HIGH") ? "[!] " : "[?] ");
+                    result.append(finding[0]).append("\r\n");
                     result.append("  Type: ").append(finding[1]).append("\r\n");
+                    result.append("  RiskLevel: ").append(riskLevel).append("\r\n");
                     result.append("  Reason: ").append(finding[2]).append("\r\n");
                     if (finding.length > 3 && finding[3] != null && !finding[3].isEmpty()) {
                         result.append("  Fields:\r\n").append(finding[3]).append("\r\n");
@@ -101,9 +207,52 @@ public class MemShellDetector01 implements ISpider {
                 }
             }
         } catch (Exception ex) {
-            System.out.println(ex);
+            System.out.println("[-] MemShellDetector error: " + ex.getMessage());
         }
         return result.toString();
+    }
+
+    // ========== 白名单加载 ==========
+
+    @SuppressWarnings("unchecked")
+    private void loadWhitelist() {
+        if (whitelistLoaded) return;
+        whitelistLoaded = true;
+
+        try {
+            InputStream is = getClass().getResourceAsStream("/memshell-whitelist.yml");
+            if (is == null) {
+                loadDefaultWhitelist();
+                return;
+            }
+            Yaml yaml = new Yaml();
+            Map<String, Object> config = yaml.load(is);
+            is.close();
+
+            if (config == null) {
+                loadDefaultWhitelist();
+                return;
+            }
+
+            Object sc = config.get("safe_classes");
+            if (sc instanceof List) safeClasses.addAll((List<String>) sc);
+            Object sp = config.get("safe_packages");
+            if (sp instanceof List) safePackages.addAll((List<String>) sp);
+            Object scl = config.get("safe_classloaders");
+            if (scl instanceof List) safeClassloaders.addAll((List<String>) scl);
+            Object dcp = config.get("dangerous_class_patterns");
+            if (dcp instanceof List) dangerousClassPatterns.addAll((List<String>) dcp);
+            Object dmp = config.get("dangerous_method_patterns");
+            if (dmp instanceof List) dangerousMethodPatterns.addAll((List<String>) dmp);
+
+        } catch (Exception e) {
+            System.out.println("[-] Failed to load memshell whitelist: " + e.getMessage());
+            loadDefaultWhitelist();
+        }
+    }
+
+    private void loadDefaultWhitelist() {
+        safeClassloaders.addAll(Arrays.asList(SYSTEM_CLASSLOADERS));
     }
 
     // ========== Filter type detection ==========
@@ -117,37 +266,14 @@ public class MemShellDetector01 implements ISpider {
                     String filterClass = heapHolder.getFieldStringValue(instance, "filterClass");
                     if (filterClass == null || filterClass.isEmpty()) continue;
 
-                    // skip known safe filters
-                    if (isKnownSafeClass(filterClass)) continue;
+                    String filterName = heapHolder.getFieldStringValue(instance, "name");
+                    String fields = dumpFields(heapHolder, instance);
+                    String extra = "FilterName=" + filterName;
 
-                    String reason = checkSuspicious(filterClass);
-                    if (reason != null) {
-                        String filterName = heapHolder.getFieldStringValue(instance, "name");
-                        String fields = dumpFields(heapHolder, instance);
-                        String extra = "FilterName=" + filterName;
-                        findings.add(new String[]{"Class: " + filterClass, "Filter", reason + ", " + extra, fields});
-                    }
-                } catch (Exception e) {
-                    // ignore
-                }
-            }
-        }
+                    // 增强: 获取 filter 实例对象，用于后续分析
+                    Object filterInstance = heapHolder.getFieldValue(instance, "filter");
 
-        // also check filterDefs in StandardContext
-        Object ctxClass = heapHolder.findClass("org.apache.catalina.core.StandardContext");
-        if (ctxClass != null) {
-            for (Object instance : heapHolder.getInstances(ctxClass)) {
-                try {
-                    Object filterConfigs = heapHolder.getFieldValue(instance, "filterConfigs");
-                    if (filterConfigs != null && heapHolder.isMap(filterConfigs)) {
-                        HashMap<String, String> configs = heapHolder.arrayDump(heapHolder.getMap(filterConfigs));
-                        if (configs != null) {
-                            for (Map.Entry<String, String> entry : configs.entrySet()) {
-                                // filterConfigs key is filter name, value is ApplicationFilterConfig
-                                // we already checked above
-                            }
-                        }
-                    }
+                    analyzeComponentWithInstance(heapHolder, clazz, filterClass, "Filter", extra, fields, filterInstance, findings);
                 } catch (Exception e) {
                     // ignore
                 }
@@ -165,14 +291,10 @@ public class MemShellDetector01 implements ISpider {
                 String servletClass = heapHolder.getFieldStringValue(instance, "servletClass");
                 if (servletClass == null || servletClass.isEmpty()) continue;
 
-                if (isKnownSafeClass(servletClass)) continue;
+                String name = heapHolder.getFieldStringValue(instance, "name");
+                String fields = dumpFields(heapHolder, instance);
 
-                String reason = checkSuspicious(servletClass);
-                if (reason != null) {
-                    String name = heapHolder.getFieldStringValue(instance, "name");
-                    String fields = dumpFields(heapHolder, instance);
-                    findings.add(new String[]{"Class: " + servletClass, "Servlet", reason + ", ServletName=" + name, fields});
-                }
+                analyzeComponent(heapHolder, wrapperClass, servletClass, "Servlet", "ServletName=" + name, fields, findings);
             } catch (Exception e) {
                 // ignore
             }
@@ -189,18 +311,13 @@ public class MemShellDetector01 implements ISpider {
                 Object listeners = heapHolder.getFieldValue(instance, "applicationEventListenersList");
                 if (listeners == null) continue;
 
-                // listeners is an Object[] array
                 if (listeners instanceof Object[]) {
                     for (Object listener : (Object[]) listeners) {
                         if (listener == null) continue;
                         String listenerClass = heapHolder.getClassName(listener);
-                        if (isKnownSafeClass(listenerClass)) continue;
+                        String fields = dumpFields(heapHolder, listener);
 
-                        String reason = checkSuspicious(listenerClass);
-                        if (reason != null) {
-                            String fields = dumpFields(heapHolder, listener);
-                            findings.add(new String[]{"Class: " + listenerClass, "Listener", reason, fields});
-                        }
+                        analyzeComponent(heapHolder, ctxClass, listenerClass, "Listener", "", fields, findings);
                     }
                 }
             } catch (Exception e) {
@@ -226,14 +343,9 @@ public class MemShellDetector01 implements ISpider {
                     String handler = entry.getValue();
                     if (handler == null) continue;
 
-                    // handler is typically "ClassName#methodName"
                     String handlerClass = handler.contains("#") ? handler.substring(0, handler.indexOf("#")) : handler;
-                    if (isKnownSafeClass(handlerClass)) continue;
 
-                    String reason = checkSuspicious(handlerClass);
-                    if (reason != null) {
-                        findings.add(new String[]{"Handler: " + handler, "Controller", reason, ""});
-                    }
+                    analyzeComponent(heapHolder, mappingClass, handlerClass, "Controller", "", "", findings);
                 }
             } catch (Exception e) {
                 // ignore
@@ -251,18 +363,13 @@ public class MemShellDetector01 implements ISpider {
                 Object interceptors = heapHolder.getFieldValue(instance, "adaptedInterceptors");
                 if (interceptors == null) continue;
 
-                // interceptors is a List
                 if (interceptors instanceof List) {
                     for (Object interceptor : (List) interceptors) {
                         if (interceptor == null) continue;
                         String interceptorClass = heapHolder.getClassName(interceptor);
-                        if (isKnownSafeClass(interceptorClass)) continue;
+                        String fields = dumpFields(heapHolder, interceptor);
 
-                        String reason = checkSuspicious(interceptorClass);
-                        if (reason != null) {
-                            String fields = dumpFields(heapHolder, interceptor);
-                            findings.add(new String[]{"Class: " + interceptorClass, "Interceptor", reason, fields});
-                        }
+                        analyzeComponent(heapHolder, mappingClass, interceptorClass, "Interceptor", "", fields, findings);
                     }
                 }
             } catch (Exception e) {
@@ -288,12 +395,7 @@ public class MemShellDetector01 implements ISpider {
                     String endpointClass = entry.getValue();
                     if (endpointClass == null) continue;
 
-                    if (isKnownSafeClass(endpointClass)) continue;
-
-                    String reason = checkSuspicious(endpointClass);
-                    if (reason != null) {
-                        findings.add(new String[]{"Class: " + endpointClass, "WebSocket", reason + ", Path=" + entry.getKey(), ""});
-                    }
+                    analyzeComponent(heapHolder, wsClass, endpointClass, "WebSocket", "Path=" + entry.getKey(), "", findings);
                 }
             } catch (Exception e) {
                 // ignore
@@ -315,13 +417,9 @@ public class MemShellDetector01 implements ISpider {
                     for (Object transformer : (List) chain) {
                         if (transformer == null) continue;
                         String transformerClass = heapHolder.getClassName(transformer);
-                        if (isKnownSafeClass(transformerClass)) continue;
+                        String fields = dumpFields(heapHolder, transformer);
 
-                        String reason = checkSuspicious(transformerClass);
-                        if (reason != null) {
-                            String fields = dumpFields(heapHolder, transformer);
-                            findings.add(new String[]{"Class: " + transformerClass, "Agent(Transformer)", reason, fields});
-                        }
+                        analyzeComponent(heapHolder, tmClass, transformerClass, "Agent(Transformer)", "", fields, findings);
                     }
                 }
             } catch (Exception e) {
@@ -348,13 +446,9 @@ public class MemShellDetector01 implements ISpider {
                         for (Object valve : (Object[]) valves) {
                             if (valve == null) continue;
                             String valveClass = heapHolder.getClassName(valve);
-                            if (isKnownSafeClass(valveClass)) continue;
+                            String fields = dumpFields(heapHolder, valve);
 
-                            String reason = checkSuspicious(valveClass);
-                            if (reason != null) {
-                                String fields = dumpFields(heapHolder, valve);
-                                findings.add(new String[]{"Class: " + valveClass, "Valve", reason, fields});
-                            }
+                            analyzeComponent(heapHolder, clazz, valveClass, "Valve", "", fields, findings);
                         }
                     }
                 } catch (Exception e) {
@@ -364,35 +458,425 @@ public class MemShellDetector01 implements ISpider {
         }
     }
 
-    // ========== Helper methods ==========
+    // ========== 增强: 动态代理型内存马检测 ==========
+
+    private void detectProxyType(IHeapHolder heapHolder, List<String[]> findings) {
+        Object proxyClass = heapHolder.findClass("java.lang.reflect.Proxy");
+        if (proxyClass == null) return;
+
+        for (Object instance : heapHolder.getInstances(proxyClass)) {
+            try {
+                Object handler = heapHolder.getFieldValue(instance, "h");
+                if (handler == null) continue;
+
+                String handlerClass = heapHolder.getClassName(handler);
+                if (handlerClass == null) continue;
+
+                // 跳过 JDK 自带的 InvocationHandler
+                if (handlerClass.startsWith("java.lang.reflect.") ||
+                    handlerClass.startsWith("sun.reflect.") ||
+                    handlerClass.startsWith("com.sun.proxy.")) continue;
+
+                String fields = dumpFields(heapHolder, handler);
+
+                // 检查 InvocationHandler 是否可疑
+                String reason = checkSuspicious(handlerClass);
+                String clReason = checkClassLoader(heapHolder, handlerClass);
+                String integrityReason = checkIntegrity(handlerClass);
+
+                List<String> reasons = new ArrayList<String>();
+                String riskLevel = "MEDIUM";
+
+                if (reason != null) { reasons.add(reason); riskLevel = "HIGH"; }
+                if (clReason != null) { reasons.add(clReason); riskLevel = "HIGH"; }
+                if (integrityReason != null) reasons.add(integrityReason);
+
+                // 检查 handler 的字段内容
+                String refReason = checkFieldReferences(heapHolder, null, handlerClass);
+                if (refReason != null) { reasons.add(refReason); riskLevel = "HIGH"; }
+
+                if (!reasons.isEmpty()) {
+                    findings.add(new String[]{
+                            "InvocationHandler: " + handlerClass,
+                            "DynamicProxy",
+                            String.join("; ", reasons),
+                            fields,
+                            riskLevel
+                    });
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+    }
+
+    // ========== 增强: TemplatesImpl 字节码注入检测 ==========
+
+    private void detectTemplatesImpl(IHeapHolder heapHolder, List<String[]> findings) {
+        String[] templatesClasses = {
+                "com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl",
+                "org.apache.xalan.xsltc.trax.TemplatesImpl"
+        };
+
+        for (String className : templatesClasses) {
+            Object clazz = heapHolder.findClass(className);
+            if (clazz == null) continue;
+
+            for (Object instance : heapHolder.getInstances(clazz)) {
+                try {
+                    // 检查 _bytecodes 字段是否存在且非空
+                    Object bytecodes = heapHolder.getFieldValue(instance, "_bytecodes");
+                    if (bytecodes == null) continue;
+
+                    String name = heapHolder.getFieldStringValue(instance, "_name");
+                    String fields = dumpFields(heapHolder, instance);
+
+                    List<String> reasons = new ArrayList<String>();
+                    reasons.add("TemplatesImpl with _bytecodes - bytecode injection");
+                    if (name != null && !name.isEmpty()) {
+                        reasons.add("_name=" + name);
+                    }
+
+                    findings.add(new String[]{
+                            "Class: " + className,
+                            "TemplatesImpl Injection",
+                            String.join("; ", reasons),
+                            fields,
+                            "HIGH"
+                    });
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    // ========== 统一分析逻辑 ==========
+
+    private void analyzeComponentWithInstance(IHeapHolder heapHolder, Object contextClass,
+                                               String componentClass, String type,
+                                               String extra, String fields,
+                                               Object filterInstance,
+                                               List<String[]> findings) {
+        if (componentClass == null || componentClass.isEmpty()) return;
+
+        List<String> reasons = new ArrayList<String>();
+        String riskLevel = "LOW";
+
+        // 1. 类名特征检查
+        String classReason = checkSuspicious(componentClass);
+        if (classReason != null) {
+            reasons.add(classReason);
+            riskLevel = "HIGH";
+        }
+
+        // 2. ClassLoader 检查
+        String clReason = checkClassLoader(heapHolder, componentClass);
+        if (clReason != null) {
+            reasons.add(clReason);
+            riskLevel = "HIGH";
+        }
+
+        // 3. 完整性校验（白名单）
+        String integrityReason = checkIntegrity(componentClass);
+        if (integrityReason != null) {
+            reasons.add(integrityReason);
+            if (riskLevel.equals("LOW")) riskLevel = "MEDIUM";
+        }
+
+        // 4. 字段引用分析（对可疑组件执行）
+        if (riskLevel.equals("HIGH") || riskLevel.equals("MEDIUM")) {
+            String refReason = checkFieldReferences(heapHolder, contextClass, componentClass);
+            if (refReason != null) {
+                reasons.add(refReason);
+                riskLevel = "HIGH";
+            }
+        }
+
+        // 5. 增强: 当注册的类名在堆中不存在时，直接分析 filter 实例对象
+        if (filterInstance != null && heapHolder.findClass(componentClass) == null) {
+            String instanceReason = analyzeInstanceFields(heapHolder, filterInstance);
+            if (instanceReason != null) {
+                reasons.add(instanceReason);
+                riskLevel = "HIGH";
+            }
+        }
+
+        if (!reasons.isEmpty()) {
+            String reason = String.join("; ", reasons);
+            String extraInfo = extra != null && !extra.isEmpty() ? ", " + extra : "";
+            findings.add(new String[]{
+                    "Class: " + componentClass,
+                    type,
+                    reason + extraInfo,
+                    fields,
+                    riskLevel
+            });
+        }
+    }
+
+    private void analyzeComponent(IHeapHolder heapHolder, Object contextClass,
+                                   String componentClass, String type,
+                                   String extra, String fields,
+                                   List<String[]> findings) {
+        if (componentClass == null || componentClass.isEmpty()) return;
+
+        List<String> reasons = new ArrayList<String>();
+        String riskLevel = "LOW";
+
+        // 1. 类名特征检查
+        String classReason = checkSuspicious(componentClass);
+        if (classReason != null) {
+            reasons.add(classReason);
+            riskLevel = "HIGH";
+        }
+
+        // 2. ClassLoader 检查
+        String clReason = checkClassLoader(heapHolder, componentClass);
+        if (clReason != null) {
+            reasons.add(clReason);
+            riskLevel = "HIGH";
+        }
+
+        // 3. 完整性校验（白名单）
+        String integrityReason = checkIntegrity(componentClass);
+        if (integrityReason != null) {
+            reasons.add(integrityReason);
+            if (riskLevel.equals("LOW")) riskLevel = "MEDIUM";
+        }
+
+        // 4. 字段引用分析（对可疑组件执行）
+        if (riskLevel.equals("HIGH") || riskLevel.equals("MEDIUM")) {
+            String refReason = checkFieldReferences(heapHolder, contextClass, componentClass);
+            if (refReason != null) {
+                reasons.add(refReason);
+                riskLevel = "HIGH";
+            }
+        }
+
+        if (!reasons.isEmpty()) {
+            String reason = String.join("; ", reasons);
+            String extraInfo = extra != null && !extra.isEmpty() ? ", " + extra : "";
+            findings.add(new String[]{
+                    "Class: " + componentClass,
+                    type,
+                    reason + extraInfo,
+                    fields,
+                    riskLevel
+            });
+        }
+    }
+
+    // ========== ClassLoader 检查 ==========
+
+    private String checkClassLoader(IHeapHolder heapHolder, String className) {
+        try {
+            Object clazz = heapHolder.findClass(className);
+            if (clazz == null) return null;
+
+            String clName = heapHolder.getClassLoaderName(clazz);
+            if (clName == null || clName.equals("bootstrap")) return null;
+
+            if (safeClassloaders.contains(clName)) return null;
+
+            for (String pkg : safePackages) {
+                if (className.startsWith(pkg)) return null;
+            }
+
+            return "non-system ClassLoader: " + clName;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ========== 完整性校验 ==========
+
+    private String checkIntegrity(String className) {
+        if (className == null || className.isEmpty()) return null;
+
+        if (safeClasses.contains(className)) return null;
+
+        for (String pkg : safePackages) {
+            if (className.startsWith(pkg + ".") || className.startsWith(pkg + "$")) return null;
+        }
+
+        String lower = className.toLowerCase();
+        if (lower.startsWith("java.") || lower.startsWith("javax.") ||
+            lower.startsWith("sun.") || lower.startsWith("com.sun.") ||
+            lower.startsWith("jdk.")) return null;
+
+        return "unknown component - not in whitelist";
+    }
+
+    // ========== 增强: 字段引用分析 ==========
+
+    private String checkFieldReferences(IHeapHolder heapHolder, Object contextClass, String componentClass) {
+        try {
+            Object clazz = heapHolder.findClass(componentClass);
+            if (clazz == null) return null;
+
+            List<?> instances = heapHolder.getInstances(clazz);
+            if (instances == null || instances.isEmpty()) return null;
+
+            Object instance = instances.get(0);
+
+            // 检查实例引用的对象（直接引用危险类）
+            List<Object> refs = heapHolder.getReferences(instance);
+            if (refs != null) {
+                for (Object ref : refs) {
+                    String refClassName = heapHolder.getClassName(ref);
+                    if (refClassName != null && isDangerousClass(refClassName)) {
+                        return "references dangerous class: " + refClassName;
+                    }
+
+                    // 增强: 检查引用对象是否是 InvocationHandler（动态代理）
+                    if (refClassName != null && refClassName.contains("InvocationHandler")) {
+                        return "references InvocationHandler: " + refClassName;
+                    }
+
+                    // 增强: 检查引用对象是否包含加密相关类
+                    if (refClassName != null && isEncryptionClass(refClassName)) {
+                        return "references encryption class: " + refClassName;
+                    }
+                }
+            }
+
+            // 检查字符串字段中的危险模式
+            List<?> fields = heapHolder.getFields(clazz);
+            if (fields != null) {
+                for (Object field : fields) {
+                    String fieldName = heapHolder.getFieldName(field);
+                    if (fieldName == null) continue;
+
+                    String value = heapHolder.getFieldStringValue(instance, fieldName);
+                    if (value != null && containsDangerousPattern(value)) {
+                        return "field '" + fieldName + "' contains dangerous pattern";
+                    }
+
+                    // 增强: 检查可疑字段名 + 非空值（可能是编码后的 payload）
+                    if (SUSPICIOUS_FIELD_NAME_PATTERN.matcher(fieldName).find()) {
+                        if (value != null && !value.isEmpty() && value.length() > 10) {
+                            return "suspicious field '" + fieldName + "' has non-trivial value";
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    private boolean isDangerousClass(String className) {
+        if (className == null) return false;
+        for (String dangerous : DANGEROUS_CLASS_NAMES) {
+            if (className.equals(dangerous)) return true;
+        }
+        return false;
+    }
+
+    // 增强: 加密相关类检测
+    private boolean isEncryptionClass(String className) {
+        if (className == null) return false;
+        return className.contains("Cipher") ||
+               className.contains("SecretKey") ||
+               className.contains("Encrypt") ||
+               className.contains("Crypto");
+    }
+
+    private boolean containsDangerousPattern(String value) {
+        if (value == null || value.length() > 10000) return false;
+        return DANGEROUS_STRING_PATTERN.matcher(value).find();
+    }
+
+    // ========== 增强: 分析实例对象的字段（当注册类名不存在时）==========
+
+    private String analyzeInstanceFields(IHeapHolder heapHolder, Object instance) {
+        try {
+            String instanceClassName = heapHolder.getInstanceClassName(instance);
+            if (instanceClassName == null) return null;
+
+            // 跳过 JDK 核心类
+            if (instanceClassName.startsWith("java.") || instanceClassName.startsWith("javax.") ||
+                instanceClassName.startsWith("sun.") || instanceClassName.startsWith("jdk.")) {
+                return null;
+            }
+
+            // 获取实例的所有字段（包括父类）
+            List<Object> allFields = new ArrayList<Object>();
+            String className = instanceClassName;
+            while (className != null && !className.equals("java.lang.Object")) {
+                Object currentClass = heapHolder.findClass(className);
+                if (currentClass == null) break;
+                for (Object f : heapHolder.getFields(currentClass)) {
+                    allFields.add(f);
+                }
+                Object superClass = heapHolder.getSuperClass(currentClass);
+                if (superClass == null) break;
+                className = heapHolder.getClassName(superClass);
+            }
+
+            // 检查每个字段
+            for (Object field : allFields) {
+                String fieldName = heapHolder.getFieldName(field);
+                if (fieldName == null) continue;
+
+                // 检查字段值
+                String value = heapHolder.getFieldStringValue(instance, fieldName);
+                if (value != null && containsDangerousPattern(value)) {
+                    return "instance field '" + fieldName + "' contains dangerous pattern";
+                }
+
+                // 检查可疑字段名 + 非空值
+                if (SUSPICIOUS_FIELD_NAME_PATTERN.matcher(fieldName).find()) {
+                    if (value != null && !value.isEmpty() && value.length() > 10) {
+                        return "instance has suspicious field '" + fieldName + "'";
+                    }
+                }
+
+                // 检查字段引用的对象是否是危险类
+                Object fieldValue = heapHolder.getFieldValue(instance, fieldName);
+                if (fieldValue != null) {
+                    String refClassName = heapHolder.getClassName(fieldValue);
+                    if (refClassName != null && isDangerousClass(refClassName)) {
+                        return "instance field '" + fieldName + "' references dangerous class: " + refClassName;
+                    }
+                    if (refClassName != null && isEncryptionClass(refClassName)) {
+                        return "instance field '" + fieldName + "' references encryption class: " + refClassName;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    // ========== 类名特征检查 ==========
 
     private String checkSuspicious(String className) {
         if (className == null || className.isEmpty()) return null;
 
         List<String> reasons = new ArrayList<String>();
 
-        // check for suspicious keywords
         if (SUSPICIOUS_CLASS_PATTERN.matcher(className).find()) {
             reasons.add("contains suspicious keyword");
         }
 
-        // check for no package name
         if (!className.contains(".")) {
             reasons.add("no package name");
         }
 
-        // check for random-looking names
         String simpleName = className.contains(".") ? className.substring(className.lastIndexOf(".") + 1) : className;
         if (RANDOM_NAME_PATTERN.matcher(simpleName).matches()) {
             reasons.add("random-looking class name");
         }
 
-        // check for $ anonymous inner class with high number
         if (className.matches(".*\\$[0-9]{2,}$")) {
             reasons.add("anonymous inner class with high index");
         }
 
-        // check for common memshell patterns
         String lower = className.toLowerCase();
         if (lower.contains("templatesimpl") || lower.contains("translet")) {
             reasons.add("TemplatesImpl/Translet related");
@@ -401,15 +885,14 @@ public class MemShellDetector01 implements ISpider {
         return reasons.isEmpty() ? null : String.join(", ", reasons);
     }
 
+    // ========== Helper methods ==========
+
     private boolean isKnownSafeClass(String className) {
         if (className == null) return true;
         String lower = className.toLowerCase();
 
-        // skip JDK classes
         if (lower.startsWith("java.") || lower.startsWith("javax.") || lower.startsWith("sun.")) return true;
         if (lower.startsWith("com.sun.") || lower.startsWith("jdk.")) return true;
-
-        // skip common framework classes
         if (lower.startsWith("org.springframework.") && !lower.contains("proxy")) return true;
         if (lower.startsWith("org.apache.") && !lower.contains("jsp")) return true;
         if (lower.startsWith("com.alibaba.") && !lower.contains("shell")) return true;
@@ -419,8 +902,6 @@ public class MemShellDetector01 implements ISpider {
         if (lower.startsWith("io.netty.")) return true;
         if (lower.startsWith("org.eclipse.")) return true;
         if (lower.startsWith("org.aspectj.")) return true;
-
-        // skip common safe patterns
         if (lower.contains("configuration") || lower.contains("autoconfigure")) return true;
         if (lower.contains("properties") || lower.contains("config")) return true;
         if (lower.contains("controller") && !lower.contains("evil")) return true;
@@ -434,9 +915,7 @@ public class MemShellDetector01 implements ISpider {
         StringBuilder sb = new StringBuilder();
         try {
             Object clazz = instance;
-            // get class name
             String className = heapHolder.getClassName(clazz);
-            // iterate fields
             List<Object> fields = new ArrayList<Object>();
             while (className != null && !className.equals("java.lang.Object")) {
                 Object currentClass = heapHolder.findClass(className);

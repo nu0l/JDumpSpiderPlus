@@ -263,4 +263,61 @@ public class GraalvmHeapHolder implements IHeapHolder {
         }
         return joiner.toString();
     }
+
+    public String getClassLoaderName(Object javaClass) {
+        try {
+            if (javaClass instanceof JavaClass) {
+                Instance cl = ((JavaClass) javaClass).getClassLoader();
+                if (cl == null) return "bootstrap";
+                return cl.getJavaClass().getName();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    public Object getClassLoaderInstance(Object javaClass) {
+        try {
+            if (javaClass instanceof JavaClass) {
+                return ((JavaClass) javaClass).getClassLoader();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    public List<Object> getReferences(Object instance) {
+        List<Object> result = new ArrayList<Object>();
+        try {
+            if (instance instanceof Instance) {
+                List<FieldValue> fieldValues = ((Instance) instance).getFieldValues();
+                if (fieldValues != null) {
+                    for (FieldValue fv : fieldValues) {
+                        if (fv instanceof ObjectFieldValue) {
+                            Instance ref = ((ObjectFieldValue) fv).getInstance();
+                            if (ref != null) {
+                                result.add(ref);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return result;
+    }
+
+    public String getInstanceClassName(Object instance) {
+        try {
+            if (instance instanceof Instance) {
+                return ((Instance) instance).getJavaClass().getName();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
 }
