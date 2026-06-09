@@ -278,4 +278,61 @@ public class NetbeansHeapHolder implements IHeapHolder {
             }
         } else return null;
     }
+
+    public String getClassLoaderName(Object javaClass) {
+        try {
+            if (javaClass instanceof JavaClass) {
+                Instance cl = ((JavaClass) javaClass).getClassLoader();
+                if (cl == null) return "bootstrap";
+                return cl.getJavaClass().getName();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    public Object getClassLoaderInstance(Object javaClass) {
+        try {
+            if (javaClass instanceof JavaClass) {
+                return ((JavaClass) javaClass).getClassLoader();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    public List<Object> getReferences(Object instance) {
+        List<Object> result = new ArrayList<Object>();
+        try {
+            if (instance instanceof Instance) {
+                List fieldValues = ((Instance) instance).getFieldValues();
+                if (fieldValues != null) {
+                    for (Object fv : fieldValues) {
+                        if (fv instanceof ObjectFieldValue) {
+                            Instance ref = ((ObjectFieldValue) fv).getInstance();
+                            if (ref != null) {
+                                result.add(ref);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return result;
+    }
+
+    public String getInstanceClassName(Object instance) {
+        try {
+            if (instance instanceof Instance) {
+                return ((Instance) instance).getJavaClass().getName();
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
 }

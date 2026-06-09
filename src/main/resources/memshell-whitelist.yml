@@ -1,0 +1,122 @@
+# 内存马检测白名单配置
+# 仅作为参考，不在白名单中的组件不一定是内存马
+
+# 已知安全的类名
+safe_classes:
+  # Tomcat 内置 Filter
+  - org.apache.catalina.filters.CsrfNonceFilter
+  - org.apache.catalina.filters.SetCharacterEncodingFilter
+  - org.apache.catalina.filters.CorsFilter
+  - org.apache.catalina.filters.HttpHeaderSecurityFilter
+  - org.apache.catalina.filters.StaleSessionFilter
+  - org.apache.catalina.filters.WebdavFixFilter
+  - org.apache.catalina.filters.RestCsrfPreventionFilter
+  - org.apache.catalina.filters.AddDefaultCharsetFilter
+  - org.apache.catalina.filters.FailedRequestFilter
+  # Spring Framework
+  - org.springframework.web.filter.CharacterEncodingFilter
+  - org.springframework.web.filter.RequestContextFilter
+  - org.springframework.web.filter.HiddenHttpMethodFilter
+  - org.springframework.web.filter.FormContentFilter
+  - org.springframework.web.filter.ForwardedHeaderFilter
+  - org.springframework.web.filter.HttpPutFormContentFilter
+  - org.springframework.web.filter.ShallowEtagHeaderFilter
+  - org.springframework.web.filter.CorsFilter
+  - org.springframework.web.filter.OncePerRequestFilter
+  - org.springframework.web.servlet.DispatcherServlet
+  - org.springframework.web.servlet.resource.DefaultServletHttpRequestHandler
+  - org.springframework.web.context.request.RequestContextListener
+  - org.springframework.web.context.ContextLoaderListener
+  - org.springframework.web.util.IntrospectorCleanupListener
+  # Shiro
+  - org.apache.shiro.web.servlet.ShiroFilter
+  - org.apache.shiro.web.servlet.AbstractShiroFilter
+  # Spring Security
+  - org.springframework.web.filter.DelegatingFilterProxy
+  - org.springframework.security.web.session.HttpSessionEventPublisher
+  # Druid
+  - com.alibaba.druid.support.http.WebStatFilter
+  - com.alibaba.druid.support.http.StatViewServlet
+  # Actuator
+  - org.springframework.boot.actuate.autoconfigure.web.servlet.ServletManagementContextAutoConfiguration
+  # Swagger
+  - springfox.documentation.swagger2.mappers.ServiceModelToSwagger2Mapper
+  # MyBatis
+  - org.mybatis.spring.SqlSessionFactoryBean
+
+# 已知安全的包名前缀
+safe_packages:
+  - org.apache.catalina.filters
+  - org.apache.catalina.core
+  - org.apache.catalina.connector
+  - org.apache.catalina.session
+  - org.apache.catalina.realm
+  - org.apache.catalina.authenticator
+  - org.apache.catalina.manager
+  - org.apache.catalina.valves
+  - org.apache.catalina.loader
+  - org.apache.catalina.startup
+  - org.apache.catalina.util
+  - org.apache.catalina.ha
+  - org.apache.catalina.tribes
+  - org.apache.coyote
+  - org.apache.jasper
+  - org.apache.tomcat
+  - org.springframework.web.filter
+  - org.springframework.web.servlet
+  - org.springframework.web.context
+  - org.springframework.web.util
+  - org.springframework.security.web
+  - org.springframework.boot.actuate
+  - org.springframework.session
+  - org.apache.shiro.web.servlet
+  - com.alibaba.druid.support.http
+  - javax.faces
+  - org.apache.struts2
+
+# 已知安全的 ClassLoader 类型
+safe_classloaders:
+  # Java 8
+  - sun.misc.Launcher$AppClassLoader
+  - sun.misc.Launcher$ExtClassLoader
+  # Java 9+
+  - jdk.internal.loader.ClassLoaders$AppClassLoader
+  - jdk.internal.loader.ClassLoaders$PlatformClassLoader
+  - jdk.internal.loader.BuiltinClassLoader
+  # Common
+  - java.lang.ClassLoader
+  - java.net.URLClassLoader
+  - java.security.SecureClassLoader
+  # Tomcat
+  - org.apache.catalina.loader.WebappClassLoader
+  - org.apache.catalina.loader.WebappClassLoaderBase
+  # Spring Boot
+  - org.springframework.boot.loader.LaunchedURLClassLoader
+  - org.springframework.boot.loader.jar.JarLauncher
+  # Other
+  - sun.reflect.DelegatingClassLoader
+  - javax.management.remote.rmi.NoCallStackClassLoader
+
+# 危险类名关键词（用于字段内容扫描）
+dangerous_class_patterns:
+  - java.lang.Runtime
+  - java.lang.ProcessBuilder
+  - java.lang.UNIXProcess
+  - java.lang.ProcessImpl
+  - javax.script.ScriptEngine
+  - javax.script.ScriptEngineManager
+  - org.apache.commons.io.IOUtils
+  - freemarker.template.utility.Execute
+  - ognl.OgnlRuntime
+
+# 危险方法名关键词
+dangerous_method_patterns:
+  - exec
+  - invoke
+  - eval
+  - compile
+  - defineClass
+  - loadClass
+  - getRuntime
+  - getDeclaredMethod
+  - getMethod

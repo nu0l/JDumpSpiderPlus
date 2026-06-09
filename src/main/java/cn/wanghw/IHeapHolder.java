@@ -52,4 +52,12 @@ public interface IHeapHolder {
     String toString(Object instance);
 
     byte[] toByteArray(Object _instance);
+
+    String getClassLoaderName(Object javaClass);
+
+    Object getClassLoaderInstance(Object javaClass);
+
+    java.util.List<Object> getReferences(Object instance);
+
+    String getInstanceClassName(Object instance);
 }

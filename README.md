@@ -2,7 +2,7 @@
 
 [![Java](https://img.shields.io/badge/Java-8+-blue.svg)](https://www.java.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.4.2-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-2.4.3-orange.svg)]()
 
 HeapDump 敏感信息提取工具，用于从 Java 堆转储文件中自动提取数据库凭证、密钥、密码、内存马等敏感信息。基于 [JDumpSpider](https://github.com/whwlsfb/JDumpSpider) 二次开发。
 
@@ -169,7 +169,7 @@ results/
 ├── tool_scan.txt      # 内置模块扫描结果
 ├── regex_scan.txt     # HaE 规则匹配结果
 ├── report.csv         # Excel 格式报告 (--format excel 时)
-└── memshell/          # 内存马字节码导出目录
+└── memshell/          # 内存马检测摘要目录
 ```
 
 ## 配置文件
@@ -210,7 +210,36 @@ mvn clean package -DskipTests
 - ClassLoader 非系统类加载器
 - ProtectionDomain 为 null
 
+**增强检测能力 (v2.4.2+)：**
+- ClassLoader 链分析：检查组件是否由非系统 ClassLoader 加载
+- 字段引用分析：检查实例字段中是否引用 Runtime/ProcessBuilder 等危险类
+- 字符串内容扫描：检测 Base64/XOR 编码的危险关键词（如 `amF2YS5sYW5nLlJ1bnRpbWU=` = `java.lang.Runtime`）
+- 完整性校验：对比已知安全组件白名单，标记未知组件
+- 风险等级：HIGH / MEDIUM / LOW 三级分类
+
+**检测限制：**
+- HPROF 格式不包含类字节码，无法导出 .class 文件
+- 只能检查注册信息（类名、字段值），无法分析方法体内的行为
+- 类名伪装 + 无危险字段引用的内存马可能绕过检测
+
 ## 版本历史
+
+### v2.4.3 (2026-06-09)
+- 增强内存马检测：覆盖多种 bypass 手段
+  - 新增 TemplatesImpl 字节码注入检测
+  - 新增动态代理 (Proxy/InvocationHandler) 内存马检测
+  - 新增 ScriptEngine 脚本引擎检测
+  - 新增 Cipher/SecretKeySpec 加密类检测
+  - 新增 JNDI/LDAP URL 模式检测
+  - 新增反射链 (getDeclaredMethod/invoke/forName) 检测
+  - 新增 Base64 编码危险关键词检测
+  - 新增可疑字段名模式检测 (payload/shellcode/encrypted 等)
+  - 新增实例字段分析：当注册类名不存在时，分析 filter 实例对象的字段
+- 新增 ClassLoader 链分析（兼容 Java 8/9+ ClassLoader 类名）
+- 新增完整性校验白名单 (memshell-whitelist.yml)
+- 新增风险等级分类 (HIGH/MEDIUM/LOW)
+- 新增 getInstanceClassName API 支持 Instance 对象类名获取
+- 新增内存马测试程序 (src/test/java/MemShellTestHarness.java)
 
 ### v2.4.2 (2026-06-09)
 - 优化 InfoExtractor 减少误报: URL -77%, IP -98%, File Path -99%
