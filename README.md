@@ -2,7 +2,7 @@
 
 [![Java](https://img.shields.io/badge/Java-8+-blue.svg)](https://www.java.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.4.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-2.4.2-orange.svg)]()
 
 HeapDump 敏感信息提取工具，用于从 Java 堆转储文件中自动提取数据库凭证、密钥、密码、内存马等敏感信息。基于 [JDumpSpider](https://github.com/whwlsfb/JDumpSpider) 二次开发。
 
@@ -211,6 +211,12 @@ mvn clean package -DskipTests
 - ProtectionDomain 为 null
 
 ## 版本历史
+
+### v2.4.2 (2026-06-09)
+- 优化 InfoExtractor 减少误报: URL -77%, IP -98%, File Path -99%
+- 优化 HaE 规则减少误报: Cloud Key, Authorization Header, Windows Path, Sensitive Field
+- 修复 GCP Service Account 规则匹配 SpEL 表达式误报
+- 优化 EncryptedConfigDetector 减少误报
 
 ### v2.4.0 (2026-06-08)
 - 新增内存马检测 (8种类型: Filter/Servlet/Listener/Controller/Interceptor/WebSocket/Agent/Valve)

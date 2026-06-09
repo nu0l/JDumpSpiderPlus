@@ -134,7 +134,7 @@ rules:
       - name: Email
         loaded: true
         f_regex: '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,5})'
-        s_regex: ''
+        s_regex: '(@[a-z]+\.[a-z]+)'
         format: '{0}'
         color: yellow
         scope: response
@@ -198,7 +198,7 @@ rules:
     rule:
       - name: Cloud Key
         loaded: true
-        f_regex: (((access)(|-|_)(key)(|-|_)(id|secret))|(LTAI[a-z0-9]{12,20}))
+        f_regex: ((LTAI[a-z0-9]{12,20})|((access)(|-|_)(key)(|-|_)(id|secret))["\s]*[:=]["\s]*['"]?([A-Za-z0-9/+=]{16,40})['"]?)
         s_regex: ''
         format: '{0}'
         color: yellow
@@ -207,7 +207,7 @@ rules:
         sensitive: false
       - name: Windows File/Dir Path
         loaded: true
-        f_regex: '([a-zA-Z]:\\\\?(?:[^<>:/\\|?*]+\\\\?)*[^<>:/\\|?*]+(?:\.[^<>:/\\|?*]+)?)'
+        f_regex: '([a-zA-Z]:\\(?:[^<>:/\\|?*\s]+\\)*[^<>:/\\|?*\s]{2,}(?:\.[^<>:/\\|?*\s]+)?)'
         s_regex: ''
         format: '{0}'
         color: green
@@ -256,17 +256,17 @@ rules:
         sensitive: false
       - name: Authorization Header
         loaded: true
-        f_regex: ((basic [a-z0-9=:_\+\/-]{5,100})|(bearer [a-z0-9_.=:_\+\/-]{5,100}))
+        f_regex: ((Basic [A-Za-z0-9+/=]{10,200})|(Bearer [A-Za-z0-9_.=:\+\/-]{10,500}))
         s_regex: ''
         format: '{0}'
         color: yellow
         scope: response body
         engine: nfa
-        sensitive: false
+        sensitive: true
       - name: Sensitive Field
         loaded: true
         f_regex: (((|\\)(|'|")(|[\.\w]{1,32})(key|secret|token|config|auth|access|admin|ticket)(|[\.\w]{1,32})(|\\)(|'|")(
-          |)(:|[=]{1,3}|![=]{1,2}|[\)]{0,1}\.val\()( |)(|\\)('|")([^'"]+?)(|\\)('|")(|,|\)))|((|\\)('|")([^'"]+?)(|\\)('|")(|\\)(|'|")(
+          |)(:|[=]{1,3}|![=]{1,2}|[\)]{0,1}\.val\()( |)(|\\)('|")([^'"#{}]+?)(|\\)('|")(|,|\)))|((|\\)('|")([^'"#{}]+?)(|\\)('|")(|\\)(|'|")(
           |)(:|[=]{1,3}|![=]{1,2})( |)(|[\.\w]{1,32})(key|secret|token|config|auth|access|admin|ticket)(|[\.\w]{1,32})(|\\)(|'|")))
         s_regex: ''
         format: '{0}'
@@ -370,13 +370,13 @@ rules:
         sensitive: false
       - name: 302 Location
         loaded: true
-        f_regex: 'Location: ([^\r\n]*)'
+        f_regex: 'Location: (https?://[^\s]+)'
         s_regex: ''
         format: '{0}'
         color: gray
         scope: response header
         engine: nfa
-        sensitive: false
+        sensitive: true
       - name: OSKeys
         loaded: true
         f_regex: <Key>(.*?)</Key>
@@ -590,7 +590,7 @@ rules:
         sensitive: false
       - name: GCP Service Account
         loaded: true
-        f_regex: ((private_key_id|private_key|client_email|client_id)["\s]*[:=]["\s]*['"]?([^'",\s]{10,100})['"]?)
+        f_regex: ((private_key_id|private_key|client_email)["\s]*[:=]["\s]*['"]?([^'",$#{}\s]{10,100})['"]?)
         s_regex: ''
         format: '{0}'
         color: red
